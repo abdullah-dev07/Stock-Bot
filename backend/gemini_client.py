@@ -152,7 +152,7 @@ def generate_grounded_response(prompt, history=[]):
     # Make the request using the client
     try:
         response = client.models.generate_content_stream(
-            model="gemini-2.5-pro",
+            model="gemini-2.5-flash",
             contents=model_contents,
             config=config
         )

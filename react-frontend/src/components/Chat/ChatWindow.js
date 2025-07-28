@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Message from './Message';
-import ChatInput from './ChatInput'; // Make sure this path is correct
+import ChatInput from './ChatInput';
 
+// It's good practice to define the base URL as a constant.
 const API_BASE_URL = 'http://localhost:8000';
 
 function ChatWindow() {
-    const streamStateRef = useRef({ text: '', id: null });
     const [history, setHistory] = useState([
         { role: 'model', text: "Hello! How can I help you today?", id: Date.now() }
     ]);
@@ -20,6 +20,7 @@ function ChatWindow() {
     const handleLogout = useCallback(async () => {
         localStorage.removeItem('stockbot_token');
         try {
+            // Use the API_BASE_URL constant for consistency
             await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST' });
         } catch (error) {
             console.error("Logout request failed:", error);
@@ -43,48 +44,58 @@ function ChatWindow() {
                     }
                 } catch (error) {
                     console.error("Failed to fetch user data:", error);
-                    handleLogout();
+                    handleLogout(); // Log out on fetch error
                 }
             } else {
-                navigate('/login');
+                navigate('/login'); // Redirect if no token
             }
         };
         fetchUser();
     }, [navigate, handleLogout]);
 
+    // Scrolls the chat box to the bottom whenever the history changes
     useEffect(() => {
         if (chatBoxRef.current) {
             chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
         }
     }, [history]);
 
-    // Updated function with correct loading logic
-    const handleSendMessage = async (messageText) => {
-        // 1. Turn loading ON at the very beginning.
+    // --- SIMPLIFIED AND UNIFIED MESSAGE HANDLING LOGIC ---
+    const handleSendMessage = async (messageOrPayload) => {
+        // Determine the payload. It can be a simple string from the input
+        // or an object with context from a clarification button.
+        const isPayloadObject = typeof messageOrPayload === 'object' && messageOrPayload !== null;
+        const payload = isPayloadObject ? messageOrPayload : { message: messageOrPayload };
+
+        // Start loading indicator
         setIsLoading(true);
 
-        const payload = { message: messageText, history: history.slice(1) }; // Pass previous history
-        
-        const newUserMessage = {
-            role: 'user',
-            text: messageText,
-            id: Date.now()
-        };
-        setHistory(prev => [...prev, newUserMessage]);
+        // Add the user's message to history ONLY if it's a new message,
+        // not a clarification selection (which doesn't need to be echoed).
+        if (!payload.context) {
+            const newUserMessage = {
+                role: 'user',
+                text: payload.message,
+                id: Date.now()
+            };
+            setHistory(prev => [...prev, newUserMessage]);
+        }
 
+        // We send the entire history (minus the initial greeting) to the backend for context.
+        const fullPayload = { ...payload, history: history.slice(1) };
         const token = localStorage.getItem('stockbot_token');
 
         try {
             const response = await fetch(`${API_BASE_URL}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(fullPayload),
             });
 
             if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
 
-            const responseContentType = response.headers.get("content-type");
-            if (responseContentType && responseContentType.includes("application/json")) {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
                 const data = await response.json();
                 if (data.response_type === 'clarification') {
                     const clarificationMessage = {
@@ -96,36 +107,29 @@ function ChatWindow() {
                     };
                     setHistory(prev => [...prev, clarificationMessage]);
                 }
-            } else { // Handle the text stream
+            } else {
+                // Handle the text stream
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
+                let accumulatedText = '';
                 const newMessageId = Date.now();
-                streamStateRef.current = { text: '', id: newMessageId };
 
-                // Add placeholder for the bot's response
-                setHistory(prev => [...prev, {
-                    role: 'model',
-                    text: '',
-                    id: newMessageId
-                }]);
+                // Add a placeholder for the streaming message
+                setHistory(prev => [...prev, { role: 'model', text: '', id: newMessageId }]);
 
-                const updateStreamingMessage = () => {
-                    setHistory(prev => {
-                        const newHistory = [...prev];
-                        const lastMessage = newHistory[newHistory.length - 1];
-                        if (lastMessage && lastMessage.id === streamStateRef.current.id) {
-                            lastMessage.text = streamStateRef.current.text;
-                        }
-                        return newHistory;
-                    });
-                };
-
+                // Process each chunk as it arrives
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
 
-                    streamStateRef.current.text += decoder.decode(value, { stream: true });
-                    updateStreamingMessage();
+                    accumulatedText += decoder.decode(value, { stream: true });
+                    
+                    // Directly update the history with the latest accumulated text
+                    setHistory(prev => prev.map(msg =>
+                        msg.id === newMessageId
+                            ? { ...msg, text: accumulatedText }
+                            : msg
+                    ));
                 }
             }
         } catch (error) {
@@ -136,7 +140,7 @@ function ChatWindow() {
                 id: Date.now()
             }]);
         } finally {
-            // 2. Turn loading OFF at the very end, after everything is finished.
+            // Stop loading indicator after everything is done
             setIsLoading(false);
         }
     };
@@ -158,10 +162,10 @@ function ChatWindow() {
                         text={msg.text}
                         choices={msg.choices}
                         original_intent={msg.original_intent}
-                        onClarificationSelect={(clarificationPayload) => handleSendMessage(clarificationPayload.message)}
+                        // Pass the handler directly. It can handle the payload object.
+                        onClarificationSelect={handleSendMessage}
                     />
                 ))}
-                {/* This loading indicator will now correctly display for the whole duration */}
                 {isLoading && (
                     <div className="message bot-message">
                         <div className="message-content typing-indicator">
@@ -170,7 +174,7 @@ function ChatWindow() {
                     </div>
                 )}
             </div>
-            {/* The ChatInput component sends only the message text */}
+            {/* Pass the handler directly. It can handle the text string. */}
             <ChatInput onSendMessage={handleSendMessage} />
         </div>
     );
