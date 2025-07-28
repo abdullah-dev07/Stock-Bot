@@ -1,0 +1,13 @@
+# .gitignore
+
+# Ignore all node_modules in any subfolder
+**/node_modules/
+
+# Ignore build files
+**/build/
+
+# Mac system files
+.DS_Store
+
+# Log files
+*.log
