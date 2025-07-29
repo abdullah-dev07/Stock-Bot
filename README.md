@@ -124,9 +124,9 @@ The best way to run the project is to use the custom script that starts both the
 
 The FastAPI backend provides the following key endpoints:
 
-* `POST /register`: Creates a new user account.
-* `POST /token`: Authenticates a user and provides a JWT token.
-* `GET /users/me`: Retrieves the current authenticated user's data.
+* `POST /auth/register`: Creates a new user account.
+* `POST /auth/token`: Authenticates a user and provides a JWT token.
+* `GET /auth/users/me`: Retrieves the current authenticated user's data.
 * `POST /chat`: The main endpoint for interacting with the chatbot. It handles both streaming and JSON responses.
 * `GET /ticker-data`: Gets cached price data for a predefined list of major stocks.
 * `GET /market-movers`: Gets the day's top gainers and losers.
