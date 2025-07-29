@@ -4,7 +4,7 @@ StockBot is a full-stack web application that acts as an AI-powered financial as
 
 ---
 
-## ✨ Features
+##  Features
 
 * **Conversational AI Chat:** Interact with an intelligent chatbot to get financial information in a natural way.
 * **Real-time Stock Quotes:** Fetch up-to-the-minute stock prices and key metrics for any ticker symbol.
@@ -16,7 +16,7 @@ StockBot is a full-stack web application that acts as an AI-powered financial as
 
 ---
 
-## 🏛️ Architecture
+## Architecture
 
 The project is built with a modern web stack, separating the backend API from the frontend client for scalability and maintainability.
 
@@ -28,12 +28,13 @@ The project is built with a modern web stack, separating the backend API from th
 
 * **Frontend:**
     * **Library:** **React** - A popular JavaScript library for building user interfaces.
+    * **Build Tool:** **Vite** - A next-generation frontend tool that provides an extremely fast development experience.
     * **Routing:** **React Router** - For handling client-side page navigation.
     * **Styling:** Custom CSS for a clean and responsive chat interface.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 Follow these instructions to get a local copy of the project up and running for development and testing purposes.
 
@@ -44,30 +45,31 @@ Ensure you have the following installed on your local machine:
 * [Node.js and npm](https://nodejs.org/en/)
 * A code editor like [VS Code](https://code.visualstudio.com/)
 
-### 🔑 API Keys
+### API Keys
 
 Before you begin, you will need to obtain API keys from the following services:
 * **Google AI Studio:** For your `GEMINI_API_KEY`.
 * **Alpha Vantage:** For your `ALPHA_VANTAGE_API_KEY`.
 * **Firebase:** Create a new project and get your web app's configuration credentials.
 
-### ⚙️ Backend Setup
+### Backend Setup
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/your-username/stockbot.git](https://github.com/your-username/stockbot.git)
-    cd stockbot/backend
+    git clone [https://github.com/abdullah-dev07/Stock-Bot](https://github.com/abdullah-dev07/Stock-Bot)
+    cd stockbot
     ```
 
 2.  **Create a Virtual Environment:**
+    (Assuming the virtual environment is in the project root)
     ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    python -m venv stockbot_env
+    source stockbot_env/bin/activate  # On Windows, use `stockbot_env\Scripts\activate`
     ```
 
 3.  **Install Dependencies:**
     ```bash
-    pip install -r requirements.txt
+    pip install -r backend/requirements.txt
     ```
 
 4.  **Create an Environment File:**
@@ -85,29 +87,36 @@ Before you begin, you will need to obtain API keys from the following services:
     FIREBASE_CONFIG='{"apiKey": "AIza...", "authDomain": "...", "projectId": "...", "storageBucket": "...", "messagingSenderId": "...", "appId": "..."}'
     ```
 
-5.  **Run the Backend Server:**
-    ```bash
-    uvicorn main:app --reload
-    ```
-    The backend API will be running at `http://localhost:8000`.
-
-### 🖥️ Frontend Setup
+### 🖥️ Frontend Setup (Vite)
 
 1.  **Navigate to the Frontend Directory:**
     ```bash
-    cd ../react-frontend
+    cd react-frontend
     ```
 
 2.  **Install Dependencies:**
     ```bash
     npm install
     ```
+    This will install React, Vite, and other necessary packages listed in `package.json`.
 
-3.  **Run the Frontend Development Server:**
+3.  **File Structure Note:**
+    Vite requires files containing JSX to use the `.jsx` extension. Ensure all your component files (e.g., `App.js`, `ChatWindow.js`) have been renamed to `.jsx`. Also, ensure your `index.html` points to `/src/index.jsx`.
+
+### ⚡ Running Both Servers Concurrently
+
+The best way to run the project is to use the custom script that starts both the backend and frontend servers with a single command.
+
+1.  **Navigate to the Frontend Directory:**
     ```bash
-    npm start
+    cd react-frontend
     ```
-    The React application will open automatically in your browser at `http://localhost:3000`.
+
+2.  **Run the Full-Stack Command:**
+    ```bash
+    npm run dev:fullstack
+    ```
+    This command uses `concurrently` to launch both the FastAPI backend (running on `http://localhost:8000`) and the Vite frontend (running on `http://localhost:5173`).
 
 ---
 
