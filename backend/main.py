@@ -26,7 +26,7 @@ app = FastAPI()
 # --- CORS Middleware ---
 # This allows your React app and a potential static build test to make requests to this backend directly.
 origins = [
-    "http://localhost:3000",  # Standard React Dev Server
+    "http://localhost:5173",  # Standard React Dev Server
     "http://127.0.0.1:3000",  # Accessing React Dev Server via IP
     "http://localhost:8081",  # For testing a production build locally
     "http://127.0.0.1:8081",  # For testing a production build locally via IP
