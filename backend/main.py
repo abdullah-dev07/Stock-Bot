@@ -128,6 +128,21 @@ def proceed_with_intent(intent: str, ticker: str, entity: str):
     
     return StreamingResponse(iter(["I'm not sure how to proceed with that request."]), media_type="text/plain")
 
+def proceed_with_intent(intent : str, ticker : str, entity : str):
+
+    if intent == "get_specific_data":
+        quote_data = stock_api.get_stock_quote(ticker)
+        if not quote_data:
+            return StreamingResponse(iter([f"Sorry, I couldn't retrieve valid price data for {ticker}."]), media_type="text/plain")
+        
+        return StreamingResponse(gemini_client.generate_response_from_quote(entity,quote_data), media_type="text/plain")
+
+    return StreamingResponse(iter(["I'm not sure how to proceed with that request."]), media_type="text/plain")
+
+
+
+
+
 @app.post("/chat", tags=["Application"])
 async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
     user_message = payload.message

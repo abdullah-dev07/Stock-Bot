@@ -22,7 +22,7 @@ The project is built with a modern web stack, separating the backend API from th
 
 * **Backend:**
     * **Framework:** **FastAPI** - A high-performance Python web framework for building APIs.
-    * **AI Engine:** **Google Gemini API** (Gemini 1.5 Pro & Flash) - Used for intent recognition, natural language understanding, and generating grounded, intelligent responses.
+    * **AI Engine:** **Google Gemini API** (Gemini 2.5 Pro & Flash) - Used for intent recognition, natural language understanding, and generating grounded, intelligent responses.
     * **Financial Data:** **Alpha Vantage API** - Used as the primary source for real-time and historical stock data, market news, and IPO calendars.
     * **Authentication:** **Firebase Authentication** - Manages user sign-up, login, and secure session handling.
 

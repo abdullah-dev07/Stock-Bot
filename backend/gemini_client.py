@@ -171,7 +171,7 @@ def generate_response_from_quote(company, quote_data):
     """Generates a human-readable response from structured stock quote data."""
     print(f"\n[GEMINI] Calling generate_response_from_quote for company: '{company}'")
     client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-    model = 'gemini-1.5-flash'
+    model = 'gemini-2.5-flash'
     
     prompt = f"""
     A user asked for the stock price of {company}.
