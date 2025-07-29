@@ -87,7 +87,7 @@ Before you begin, you will need to obtain API keys from the following services:
     FIREBASE_CONFIG='{"apiKey": "AIza...", "authDomain": "...", "projectId": "...", "storageBucket": "...", "messagingSenderId": "...", "appId": "..."}'
     ```
 
-### 🖥️ Frontend Setup (Vite)
+### Frontend Setup (Vite)
 
 1.  **Navigate to the Frontend Directory:**
     ```bash
@@ -103,7 +103,7 @@ Before you begin, you will need to obtain API keys from the following services:
 3.  **File Structure Note:**
     Vite requires files containing JSX to use the `.jsx` extension. Ensure all your component files (e.g., `App.js`, `ChatWindow.js`) have been renamed to `.jsx`. Also, ensure your `index.html` points to `/src/index.jsx`.
 
-### ⚡ Running Both Servers Concurrently
+### Running Both Servers Concurrently
 
 The best way to run the project is to use the custom script that starts both the backend and frontend servers with a single command.
 
@@ -120,7 +120,7 @@ The best way to run the project is to use the custom script that starts both the
 
 ---
 
-## ↔️ API Endpoints
+## API Endpoints
 
 The FastAPI backend provides the following key endpoints:
 
@@ -135,7 +135,7 @@ The FastAPI backend provides the following key endpoints:
 
 ---
 
-## 🔮 Future Improvements
+## Future Improvements
 
 * **Real-time Data Dashboard:** Create a separate dashboard page to visualize the market data fetched from the API endpoints.
 * **User Watchlists:** Allow authenticated users to create and save their own personal stock watchlists.
