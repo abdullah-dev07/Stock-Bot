@@ -45,6 +45,8 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
+
 async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)):
     """Dependency to verify token and get user data."""
     credentials_exception = HTTPException(

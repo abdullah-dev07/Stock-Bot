@@ -14,6 +14,74 @@ load_dotenv()
 API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
 BASE_URL = "https://www.alphavantage.co/query"
 
+
+def get_technical_indicator(ticker, function, time_period="60", series_type="close"):
+    """
+    Generic function to fetch technical indicators like SMA, RSI, etc.
+    Returns the most recent data point.
+    """
+
+    print(f"\n[STOCK API] calling {function} for ticker: {ticker}")
+    params = {
+        "function" : function,
+        "symbol" : ticker,
+        "interval": "daily",
+        "time_period": time_period,
+        "series_type":series_type,
+        "apikey":API_KEY,
+    }
+
+    try:
+        response = requests.get(BASE_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
+        if "Note" in data:
+            print(f"[STOCK API] API limited reached for {function} : {data['Note']}")
+            return None
+        
+        data_key = f"Technical Analysis: {function}"
+        if data_key in data:
+            latest_date = sorted(data[data_key].keys())[-1]
+            return data[data_key][latest_date]
+        return None
+    
+    except requests.exceptions.RequestException as e:
+        print(f"[STOCK API] Network/HTTP Error fetching {function} for {ticker} : {e}")
+        return None
+    except (KeyError, IndexError) as e:
+        print(f"[STOCK API] Error parsing {function} data for {ticker}: {e}")
+        return None
+    
+
+def get_prediction_data(ticker):
+    """
+    Gathers all fundamental and technical data required for making a prediction.
+    """    
+    print(f"\n[STOCK API] Gathering all prediction data for ticker: '{ticker}")
+
+    overview = get_company_overview(ticker)
+    if not overview:
+        print(f"Company overview for {ticker} not found using STOCK API")
+        return None
+    
+    rsi_data = get_technical_indicator(ticker, "RSI")
+    sma_data = get_technical_indicator(ticker, "SMA")
+
+    quote = get_stock_quote(ticker)
+
+    prediction_payload = {
+        "company_name": overview.get("Name", ticker),
+        "pe_ratio": overview.get("PERatio", "N/A"),
+        "eps": overview.get("EPS", "N/A"),
+        "analyst_target_price" : overview.get("AnalystTargetPrice", "N/A"),
+        "rsi": rsi_data.get("RSI", "N/A") if rsi_data else "N//A",
+        "sma_50": get_technical_indicator(ticker, "SMA", time_period="50").get("SMA") if get_technical_indicator(ticker, "SMA", time_period="50") else "N/A",
+        "sma_200": get_technical_indicator(ticker, "SMA", time_period="200").get("SMA") if get_technical_indicator(ticker, "SMA", time_period="200") else "N/A",
+        "current_price": quote.get("05. price", "N/A") if quote else "N/A"
+    }
+
+    return prediction_payload
+
 def search_ticker_symbols(keywords):
     """
     Searches for stock tickers and returns up to 5 best matches.

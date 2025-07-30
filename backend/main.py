@@ -2,15 +2,16 @@
 # PURPOSE: Main FastAPI application file, now acting as a pure API server.
 
 from fastapi import FastAPI, Depends
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 import json
 from datetime import datetime, timezone, timedelta
 from starlette.concurrency import iterate_in_threadpool
-
+import os
 # --- Initialize Firebase at the very start of the application ---
 from . import firebase_init
 
@@ -29,7 +30,9 @@ origins = [
     "http://localhost:5173",  # Standard React Dev Server
     "http://127.0.0.1:3000",  # Accessing React Dev Server via IP
     "http://localhost:8081",  # For testing a production build locally
-    "http://127.0.0.1:8081",  # For testing a production build locally via IP
+    "http://127.0.0.1:8081", 
+    "http://0.0.0.0:8000",
+    "http://localhost:5173", # Add Vite's default port
 ]
 
 app.add_middleware(
@@ -76,7 +79,7 @@ def get_ticker_data(user: dict = Depends(get_current_user)):
     cache_key = "ticker_data"
     if is_cache_stale(cache_key) or not CACHE[cache_key]["data"]:
         print(f"[CACHE] {cache_key} cache is stale or empty. Fetching new data.")
-        tickers = ["AAPL", "NVDA", "GOOGL", "MSFT", "AMZN"]
+        tickers = ["AAPL", "NVDA", "AMD","GOOGL", "MSFT", "AMZN"]
         CACHE[cache_key]["data"] = gemini_client.get_batch_stock_prices(tickers)
         CACHE[cache_key]["timestamp"] = datetime.now(timezone.utc)
     else:
@@ -138,9 +141,6 @@ def proceed_with_intent(intent : str, ticker : str, entity : str):
         return StreamingResponse(gemini_client.generate_response_from_quote(entity,quote_data), media_type="text/plain")
 
     return StreamingResponse(iter(["I'm not sure how to proceed with that request."]), media_type="text/plain")
-
-
-
 
 
 @app.post("/chat", tags=["Application"])
@@ -205,3 +205,22 @@ async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
     except Exception as e:
         print(f"[APP] An unexpected error occurred: {type(e).__name__} - {e}")
         return StreamingResponse(iter(["Sorry, an internal error occurred."]), media_type="text/plain", status_code=500)
+    
+
+
+build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../react-frontend/dist"))
+
+app.mount("/assets", StaticFiles(directory=os.path.join(build_dir, "assets")), name="assets")
+
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path:str):
+    index_path = os.path.join(build_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    return JSONResponse(status_code=404, content={"message":"Frontend not found"})
+
+    
+
+
+
