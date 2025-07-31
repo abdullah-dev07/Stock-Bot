@@ -155,7 +155,17 @@ async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
         if context.get('awaiting_clarification'):
             intent = context.get('original_intent')
             ticker = user_message
-            return proceed_with_intent(intent, ticker, ticker)
+
+            if intent =='get_prediction_or_advice':
+                prediction_data = stock_api.get_prediction_data(ticker)
+                if not prediction_data:
+                    return StreamingResponse(iter([f"Sorry, I couldn't gather enough data to make a prediction for {ticker}."]), media_type='text/plain')
+                sync_generator = gemini_client.generate_prediction_response(prediction_data)
+                return StreamingResponse(iterate_in_threadpool(sync_generator), media_type='text/plain')
+            else:
+                return proceed_with_intent(intent, ticker, ticker)
+
+
 
         intent_data = gemini_client.get_intent(user_message, history)
         intent = intent_data.get("intent", "general_knowledge")
@@ -163,12 +173,13 @@ async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
         
         print(f"[APP] Gemini identified Intent: '{intent}', Entity: '{entity}'")
 
-        if intent == 'get_specific_data':
+        if intent == 'get_specific_data' or intent == 'get_prediction_or_advice':
             if not entity:
-                return StreamingResponse(iter(["It looks like you're asking for specific data, but I couldn't identify the stock."]), media_type="text/plain")
+                error_msg = "I need to know which stock you're interested in."
+                return StreamingResponse(iter([error_msg]), media_type="text/plain")
             
             if is_likely_ticker(entity):
-                return proceed_with_intent(intent, entity, entity)
+                ticker_to_use = entity
             
             matches = stock_api.search_ticker_symbols(entity)
             if not matches:
@@ -183,25 +194,23 @@ async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
                 }
 
             ticker_to_use = matches[0]['symbol']
-            return proceed_with_intent(intent, ticker_to_use, entity)
 
-        # --- THIS IS THE FINAL, CORRECTED STREAMING LOGIC ---
-        elif intent in ['get_qualitative_analysis', 'get_personalized_advice', 'general_knowledge']:
+            if intent=='get_specific_data':
+                return proceed_with_intent(intent, ticker_to_use, entity)
+            
+            if intent == 'get_prediction_or_advice':
+                prediction_data = stock_api.get_prediction_data(ticker_to_use)
+                if not prediction_data:
+                    return StreamingResponse(iter([f"Sorry, I couldn't gather enough data to make a prediction for {ticker_to_use}."]), media_type="text/plain")
+                sync_generator = gemini_client.generate_prediction_response(prediction_data)
+                return StreamingResponse(iterate_in_threadpool(sync_generator), media_type="text/plain")
+
+        else: 
             # This is a synchronous generator function from your library
             sync_generator = gemini_client.generate_grounded_response(user_message, history)
-            
-            # This runs the synchronous generator in a separate thread to prevent blocking
-            # and lets us await it like an async generator.
-            async_iterator = iterate_in_threadpool(sync_generator)
-            
-            return StreamingResponse(async_iterator, media_type="text/plain")
-
-        else:
-            # Fallback for any other intents that should be treated as general chat
-            sync_generator = gemini_client.generate_grounded_response(user_message, history)
             async_iterator = iterate_in_threadpool(sync_generator)
             return StreamingResponse(async_iterator, media_type="text/plain")
-            
+    
     except Exception as e:
         print(f"[APP] An unexpected error occurred: {type(e).__name__} - {e}")
         return StreamingResponse(iter(["Sorry, an internal error occurred."]), media_type="text/plain", status_code=500)

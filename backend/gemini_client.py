@@ -118,20 +118,20 @@ def generate_prediction_response(prediction_data):
         - 12-Month Analyst Target Price: {prediction_data.get('analyst_target_price', 'N/A')}
 
         **Technical Indicators:**
-        - Current Stock Price : {prediction_data.get('current_price', 'N/A')}
-        - Relative Strength Index (RSI) : {prediction_data.get('eps', 'N/A')}
+        - Current Stock Price: {prediction_data.get('current_price', 'N/A')}
+        - Relative Strength Index (RSI): {prediction_data.get('rsi', 'N/A')}
         - 50-Day Simple Moving Average (SMA): {prediction_data.get('sma_50', 'N/A')}
-        - 200-DAy Simple Moving Average (SMA): {prediction_data.get('sma_200', 'N/A')}
+        - 200-Day Simple Moving Average (SMA): {prediction_data.get('sma_200', 'N/A')}
 
         Based on this data, provide the following in your analysis, in markdown format:
-        1. **Prediction:** State whether the stock is likely to go "Up", "Down", or "Neutral" in the short term.
-        2. **Confidence:** Provide a confidence for your prediction (Low, Medium, or High).
-        3. **Justification:** In a few bullet points, explain your reasoning by referencing the specific data points provided. For example, mention if the RSI indicates overbought/oversold conditions, or if the price is above/below key moving averages.
-        4. **Disclaimer:** Conclude your response VERBATIM with: "This is prediction based on available data and not financial advice. Stock markets are volatile, and past performance is not indicative of future results. Always do your own research."
-    
-    """
+        1.  **Prediction:** In a conversational sentence, state your short-term outlook for the stock (e.g., "the stock shows bullish signs," "the trend appears bearish," or "the indicators suggest a neutral or sideways movement"). The prediction should be for the general "short-term," meaning the next few days to a week.
+        2.  **Confidence:** Provide a confidence level for your prediction (Low, Medium, or High).
+        3.  **Justification:** In a few bullet points, explain your reasoning by referencing the specific data points provided.
+        4.  **Important Note:** If the user asked about a specific timeframe (like "2 days") or profit, you must state that you cannot predict exact prices or profits for specific dates, but that your analysis covers the general short-term trend.
+        5.  **Disclaimer:** Conclude your response VERBATIM with: "This is a prediction based on available data and not financial advice. Stock markets are volatile, and past performance is not indicative of future results. Always do your own research."
+        """
 
-    response = client.generate_content_stream(
+    response = client.models.generate_content_stream(
         model = model,
         contents = prompt
     )
