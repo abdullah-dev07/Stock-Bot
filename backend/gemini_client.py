@@ -57,24 +57,22 @@ def get_intent(user_prompt, history=[]):
 
     # Updated prompt with new intents and history
     prompt = f"""
-        You are an intent classifier for a stock-focused assistant.
-
+        You are an intent classifier for a stock-focused assistant. Your goal is to categorize the user's LATEST query into one of the following intents.
+        
         INTENT TYPES:
-        - 'get_specific_data': The user is asking for **real-time stock data** (price, open, close, volume, etc.) about a **single company**. Your system uses the Alpha Vantage API for this.
-        - 'get_qualitative_analysis': The user is asking for an explanation, reasoning, or trends.
-        - 'get_personalized_advice': The user is asking what they should do personally (e.g., "Should I buy Tesla?")
-        - 'general_knowledge': The user is asking about general concepts (e.g., "What is a dividend?")
+        - 'get_specific_data': The user is asking for CURRENT, real-time stock data (price, open, close, volume, etc.) for a single company.
+        - 'get_qualitative_analysis': The user is asking for an explanation of PAST events, reasoning, or trends.
+        - 'get_prediction_or_advice': The user is asking for a FUTURE prediction, forecast, opinion, or advice about a stock. This includes any questions about whether a stock will go up or down, what its future price might be, or if they should buy or sell it.
+        - 'general_knowledge': The user is asking about general financial concepts (e.g., "What is a dividend?")
 
         RULES:
-        1. If the user wants the current **stock price or quote data** for **a single company** (even if they just mention the company name), set:
-        - intent = 'get_specific_data'
-        - entity = company name (you’ll resolve the ticker elsewhere)
+        1. If the query contains words like "predict", "forecast", "will it go up", "should I buy", "future of", "is it a good investment," or asks for an opinion on future performance, the intent is 'get_prediction_or_advice'.
+        2. If the query is a simple request for the current price or quote, the intent is 'get_specific_data'.
+        3. Analyze ONLY the last user query in the context of the conversation.
         
-        2. If the query is broader, interpret accordingly and choose the appropriate intent.
-
-        3. Return only a JSON object with:
+        Return only a JSON object with:
         - "intent": one of the four intent values above
-        - "entity": company name or null
+        - "entity": company name or stock ticker mentioned, or null
 
         {context_summary}
 
@@ -91,8 +89,6 @@ def get_intent(user_prompt, history=[]):
         JSON Output:
         """
 
-
-    
     response = client.models.generate_content(contents=prompt, model=model)
     
     try:
@@ -101,6 +97,49 @@ def get_intent(user_prompt, history=[]):
     except (json.JSONDecodeError, AttributeError) as e:
         print(f"[GEMINI] Error decoding intent JSON from Gemini: {e}")
         return {"intent": "general_knowledge", "entity": user_prompt}
+
+
+def generate_prediction_response(prediction_data):
+    """
+    Generates a stock prediction analysis based on provided data.
+    """
+    print(f"\n[GEMINI] Calling generate_prediction_response for: '{prediction_data.get('company_name')}'")
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+    model = 'gemini-2.5-flash'
+
+    prompt = f"""
+        You are an expert financial analyst. Your task is to provide a stock price prediction based ONLY on the technical and fundamental data provided. Do not use any external knowledge.
+
+        Analyze the following data for {prediction_data.get('company_name', 'this company')}:
+
+        **Fundamental Data:**
+        - P/E Ratio: {prediction_data.get('pe_ratio', 'N/A')}
+        - Earnings Per Share (EPS): {prediction_data.get('eps', 'N/A')}
+        - 12-Month Analyst Target Price: {prediction_data.get('analyst_target_price', 'N/A')}
+
+        **Technical Indicators:**
+        - Current Stock Price : {prediction_data.get('current_price', 'N/A')}
+        - Relative Strength Index (RSI) : {prediction_data.get('eps', 'N/A')}
+        - 50-Day Simple Moving Average (SMA): {prediction_data.get('sma_50', 'N/A')}
+        - 200-DAy Simple Moving Average (SMA): {prediction_data.get('sma_200', 'N/A')}
+
+        Based on this data, provide the following in your analysis, in markdown format:
+        1. **Prediction:** State whether the stock is likely to go "Up", "Down", or "Neutral" in the short term.
+        2. **Confidence:** Provide a confidence for your prediction (Low, Medium, or High).
+        3. **Justification:** In a few bullet points, explain your reasoning by referencing the specific data points provided. For example, mention if the RSI indicates overbought/oversold conditions, or if the price is above/below key moving averages.
+        4. **Disclaimer:** Conclude your response VERBATIM with: "This is prediction based on available data and not financial advice. Stock markets are volatile, and past performance is not indicative of future results. Always do your own research."
+    
+    """
+
+    response = client.generate_content_stream(
+        model = model,
+        contents = prompt
+    )
+
+    for chunk in response:
+        if chunk.text:
+            yield chunk.text
+
 
 def generate_grounded_response(prompt, history=[]):
     """
