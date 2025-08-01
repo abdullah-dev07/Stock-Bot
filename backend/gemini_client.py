@@ -108,7 +108,7 @@ def generate_prediction_response(prediction_data):
     model = 'gemini-2.5-flash'
 
     prompt = f"""
-        You are an expert financial analyst. Your task is to provide a stock price prediction based ONLY on the technical and fundamental data provided. Do not use any external knowledge.
+        You are an expert financial analyst. Your task is to provide a stock price prediction based ONLY on the recently fetched technical and fundamental data. Do not use any external knowledge.
 
         Analyze the following data for {prediction_data.get('company_name', 'this company')}:
 
@@ -124,10 +124,10 @@ def generate_prediction_response(prediction_data):
         - 200-Day Simple Moving Average (SMA): {prediction_data.get('sma_200', 'N/A')}
 
         Based on this data, provide the following in your analysis, in markdown format:
-        1.  **Prediction:** In a conversational sentence, state your short-term outlook for the stock (e.g., "the stock shows bullish signs," "the trend appears bearish," or "the indicators suggest a neutral or sideways movement"). The prediction should be for the general "short-term," meaning the next few days to a week.
+        1.  **Prediction:** In a conversational sentence, state your outlook for the stock's trend. Then, based on the technical indicators, provide a potential short-term price range. For example: "Based on the bullish indicators, the stock could test the [higher price] range, while support may be found around [lower price]."
         2.  **Confidence:** Provide a confidence level for your prediction (Low, Medium, or High).
         3.  **Justification:** In a few bullet points, explain your reasoning by referencing the specific data points provided.
-        4.  **Important Note:** If the user asked about a specific timeframe (like "2 days") or profit, you must state that you cannot predict exact prices or profits for specific dates, but that your analysis covers the general short-term trend.
+        4.  **Important Note:** You must include a realistic disclaimer about the nature of the price range. State clearly that this range is a speculative estimate based on current technical levels and is not a guarantee. Emphasize that market conditions can change rapidly, making short-term price targets highly unpredictable.
         5.  **Disclaimer:** Conclude your response VERBATIM with: "This is a prediction based on available data and not financial advice. Stock markets are volatile, and past performance is not indicative of future results. Always do your own research."
         """
 
