@@ -10,7 +10,7 @@ import io
 
 load_dotenv()
 
-
+SEC_API_KEY = os.environ.get("SEC_API_KEY")
 API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
 BASE_URL = "https://www.alphavantage.co/query"
 
@@ -276,3 +276,25 @@ def get_market_news():
     except requests.exceptions.RequestException as e:
         print(f"[STOCK API] Network/HTTP Error fetching market news: {e}")
         return None
+
+
+def get_10k_filing_text(ticker):
+    """
+    Fetches the full text of the latest 10-k filing for a given ticker using sec-api.io.
+    """
+    if not SEC_API_KEY:
+        print("[STOCK API] ERROR: SEC_API_KEY not found in environment variables.")
+        return None
+    
+    print(f"\n[STOCK API] Calling sec-api.io to get 10-K for ticker: '{ticker}'")
+    render_api_url = f"https://api.sec-api.io/filing-reader?token={SEC_API_KEY}&type=10-K&ticker={ticker}&format=text"
+
+    try:
+        response = requests.get(render_api_url)
+        response.raise_for_status()
+        return response.text
+    except requests.exceptions.RequestException as e:
+        print(f"[STOCK API] Network/HTTP Error fetching 10-K for {ticker}: {e}")
+        return None
+
+
