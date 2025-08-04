@@ -14,7 +14,7 @@ from starlette.concurrency import iterate_in_threadpool
 import os
 # --- Initialize Firebase at the very start of the application ---
 from . import firebase_init
-
+from . import rag_pipeline
 # --- Import your project's modules ---
 from . import gemini_client
 from . import stock_api
@@ -217,6 +217,52 @@ async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
     
 
 
+
+class RagInitiateRequest(BaseModel):
+    company_name: str
+
+class RagQueryRequest(BaseModel):
+    company_name: str
+    question: str
+
+@app.post("/rag/initiate", tags=["RAG"])
+async def rag_initiate(payload: RagInitiateRequest, user: dict = Depends(get_current_user)):
+        """
+        Endpoint to fetch, process, and cache a 10-K document.
+        """
+        company_name = payload.company_name
+        print(f"[APP] RAG Initiate request for company: {company_name}")
+
+        matches = stock_api.search_ticker_symbols(company_name)
+        if not matches:
+            return JSONResponse(status_code=404, content={"message": f"Sorry, I couldn't find a stock ticker for '{company_name}'."})
+        
+        ticker = matches[0]['symbol']
+        actual_name = matches[0]['name']
+
+        document_text = stock_api.get_10k_filing_text(ticker)
+        if not document_text:
+            return JSONResponse(status_code=500, content={"message":f"Sorry, I was unable to retrieve the 10-K report for {actual_name}."})
+        
+        rag_pipeline.create_vector_store_from_text(document_text, actual_name)
+
+        return {"message": f"The latest 10-K report for {actual_name} is ready. What would you like ot know?"}
+
+
+app.post("/rag/query", tags=["RAG"])
+async def rag_query(payload: RagQueryRequest, user:dict= Depends(get_current_user)):
+    """
+    Endpoint to ask a question against a cached document.
+    """
+
+    company_name = payload.company_name
+    question = payload.question
+
+    streaming_response_generator = rag_pipeline.query_rag_pipeline(company_name, question)
+
+    return StreamingResponse(streaming_response_generator, media_type="text/plain")
+
+
 build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../react-frontend/dist"))
 
 app.mount("/assets", StaticFiles(directory=os.path.join(build_dir, "assets")), name="assets")
@@ -230,6 +276,5 @@ async def serve_react_app(full_path:str):
     return JSONResponse(status_code=404, content={"message":"Frontend not found"})
 
     
-
 
 
