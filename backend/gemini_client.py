@@ -108,9 +108,11 @@ def generate_prediction_response(prediction_data):
     model = 'gemini-2.5-flash'
 
     prompt = f"""
-        You are an expert financial analyst. Your task is to provide a stock price prediction based ONLY on the recently fetched technical and fundamental data. Do not use any external knowledge.
+        You are an expert financial analyst. Your task is to provide a stock price prediction based ONLY on the recently fetched technical and fundamental data. Your response must be tailored to the user's specific question.
 
-        Analyze the following data for {prediction_data.get('company_name', 'this company')}:
+        **User's Original Question:** "{user_prompt}"
+
+        **Analyze the following data for {prediction_data.get('company_name', 'this company')}:**
 
         **Fundamental Data:**
         - P/E Ratio: {prediction_data.get('pe_ratio', 'N/A')}
@@ -123,12 +125,13 @@ def generate_prediction_response(prediction_data):
         - 50-Day Simple Moving Average (SMA): {prediction_data.get('sma_50', 'N/A')}
         - 200-Day Simple Moving Average (SMA): {prediction_data.get('sma_200', 'N/A')}
 
-        Based on this data, provide the following in your analysis, in markdown format:
-        1.  **Prediction:** In a conversational sentence, state your outlook for the stock's trend. Then, based on the technical indicators, provide a potential short-term price range. For example: "Based on the bullish indicators, the stock could test the [higher price] range, while support may be found around [lower price]."
+        **Based on this data, provide the following in your analysis, in markdown format:**
+        1.  **Analysis Summary:** In a conversational sentence, state your outlook for the stock's trend and provide a potential short-term price range. For example: "Based on the bullish indicators, the stock could test the [higher price] range, while support may be found around [lower price]."
         2.  **Confidence:** Provide a confidence level for your prediction (Low, Medium, or High).
         3.  **Justification:** In a few bullet points, explain your reasoning by referencing the specific data points provided.
-        4.  **Important Note:** You must include a realistic disclaimer about the nature of the price range. State clearly that this range is a speculative estimate based on current technical levels and is not a guarantee. Emphasize that market conditions can change rapidly, making short-term price targets highly unpredictable.
-        5.  **Disclaimer:** Conclude your response VERBATIM with: "This is a prediction based on available data and not financial advice. Stock markets are volatile, and past performance is not indicative of future results. Always do your own research."
+        4.  **Regarding Your Question:** Directly address the user's original question. If they asked about profit or loss in a specific timeframe, use your analysis of the trend to answer. For example: "Regarding your question about profit in 2 days, if the current bullish trend continues, there is potential for the stock to move towards the higher end of the predicted range. However, this is highly speculative and markets can change unexpectedly." Frame the answer responsibly.
+        5.  **Important Note:** You must include a realistic disclaimer about the nature of the price range and short-term predictions. State clearly that this range is a speculative estimate based on current technical levels and is not a guarantee.
+        6.  **Disclaimer:** Conclude your response VERBATIM with: "This is a prediction based on available data and not financial advice. Stock markets are volatile, and past performance is not indicative of future results. Always do your own research."
         """
 
     response = client.models.generate_content_stream(
@@ -162,7 +165,8 @@ def generate_grounded_response(prompt, history=[]):
         context_summary = summarize_conversation(older_history)
     else:
         recent_history = history
-        
+    
+
     # Construct the full conversation history for the model
     model_contents = []
     if context_summary:
@@ -173,6 +177,10 @@ def generate_grounded_response(prompt, history=[]):
     for msg in recent_history:
         role = 'user' if msg['role'] == 'user' else 'model'
         model_contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg['text'])]))
+
+    for msg in recent_history:
+        role = 'user' if msg['role'] == 'user' else 'model'
+        model_contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg['text'])]))    
     
     # Add the current user prompt
     prompt_with_disclaimer = f"""
@@ -193,7 +201,7 @@ def generate_grounded_response(prompt, history=[]):
         response = client.models.generate_content_stream(
             model="gemini-2.5-flash",
             contents=model_contents,
-            config=config
+            config=config 
         )
 
         for chunk in response:
