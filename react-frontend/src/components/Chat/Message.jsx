@@ -6,7 +6,6 @@ import { marked } from 'marked';
 function Message({ role, text, choices, original_intent, onClarificationSelect }) {
   const isBot = role === 'model';
   
-  // Directly render the streamed text. The parent component handles the updates.
   const createMarkup = () => {
     return { __html: isBot ? marked.parse(text || '') : `<p>${text}</p>` };
   };

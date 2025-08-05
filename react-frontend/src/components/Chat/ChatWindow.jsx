@@ -16,7 +16,6 @@ function ChatWindow() {
     const chatBoxRef = useRef(null);
     const navigate = useNavigate();
 
-    // --- NEW STATE FOR RAG MODE ---
     const [isRagMode, setIsRagMode] = useState(false);
     const [ragCompany, setRagCompany] = useState(null);
 
@@ -61,10 +60,10 @@ function ChatWindow() {
         }
     }, [history]);
 
-    // --- NEW FUNCTION TO START RAG MODE ---
+
     const startRagAnalysis = () => {
         setIsRagMode(true);
-        setRagCompany(null); // Reset company on new analysis
+        setRagCompany(null);
         setHistory(prev => [...prev, {
             role: 'model',
             text: "Which company's 10-K report would you like to analyze? For example: Apple, Microsoft, or NVIDIA.",
@@ -72,30 +71,36 @@ function ChatWindow() {
         }]);
     };
 
-    // --- REFACTORED MESSAGE HANDLING LOGIC ---
-    const handleSendMessage = async (messageText) => {
-        setIsLoading(true);
-
-        const newUserMessage = { role: 'user', text: messageText, id: Date.now() };
-        setHistory(prev => [...prev, newUserMessage]);
-
-        // --- LOGIC TO HANDLE EITHER RAG OR NORMAL CHAT ---
-        if (isRagMode && !ragCompany) {
-            // This is the first message in RAG mode: the company name
-            await fetchAndProcessRagDocument(messageText);
-        } else if (isRagMode && ragCompany) {
-            // We are already in a RAG session, so this is a follow-up question
-            await askRagQuestion(messageText);
-        } else {
-            // Normal chat logic
-            await handleNormalChat({ message: messageText });
-        }
-
-        setIsLoading(false);
+  
+    const exitRagMode = () => {
+        setIsRagMode(false);
+        setRagCompany(null);
+        setHistory(prev => [...prev, {
+            role: 'model',
+            text: "Exited 10-K analysis mode. You can now ask general questions.",
+            id: Date.now()
+        }]);
     };
 
-    // --- Handles normal chat and predictions ---
+    const handleSendMessage = async (messageOrPayload) => {
+        const isPayloadObject = typeof messageOrPayload === 'object' && messageOrPayload !== null;
+        const payload = isPayloadObject ? messageOrPayload : { message: messageOrPayload };
+        
+        if (!payload.context) {
+            const newUserMessage = { role: 'user', text: payload.message, id: Date.now() };
+            setHistory(prev => [...prev, newUserMessage]);
+        }
+
+        const intent = payload.context?.original_intent;
+        if (isRagMode || intent === 'rag_initiate') {
+            await handleRagChat(payload);
+        } else {
+            await handleNormalChat(payload);
+        }
+    };
+
     const handleNormalChat = async (payload) => {
+        setIsLoading(true);
         const fullPayload = { ...payload, history: history.slice(1) };
         const token = localStorage.getItem('stockbot_token');
 
@@ -105,7 +110,6 @@ function ChatWindow() {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(fullPayload),
             });
-
             if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
 
             const contentType = response.headers.get("content-type");
@@ -139,57 +143,77 @@ function ChatWindow() {
             setHistory(prev => [...prev, {
                 role: 'model', text: "Sorry, something went wrong. Please try again.", id: Date.now()
             }]);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    // --- NEW FUNCTIONS FOR RAG WORKFLOW ---
-    const fetchAndProcessRagDocument = async (companyName) => {
-        const token = localStorage.getItem('stockbot_token');
+    const handleRagChat = async (payload) => {
+        setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/rag/initiate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ company_name: companyName }),
-            });
-            const data = await response.json();
-            if (response.ok) {
-                setRagCompany(companyName); // Lock in the company name for this session
+            if (!ragCompany || payload.context?.original_intent === 'rag_initiate') {
+                await fetchAndProcessRagDocument(payload);
+            } else {
+                await askRagQuestion(payload.message);
             }
-            setHistory(prev => [...prev, { role: 'model', text: data.message, id: Date.now() }]);
         } catch (error) {
-            console.error("RAG Initiate Error:", error);
-            setHistory(prev => [...prev, { role: 'model', text: "Sorry, I couldn't process that document.", id: Date.now() }]);
+            console.error("RAG Chat Error:", error);
+            setHistory(prev => [...prev, { role: 'model', text: "An error occurred during the analysis.", id: Date.now() }]);
+            exitRagMode();
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchAndProcessRagDocument = async (payload) => {
+        const token = localStorage.getItem('stockbot_token');
+        const body = {
+            company_name: payload.message,
+            context: payload.context || {}
+        };
+        const response = await fetch(`${API_BASE_URL}/rag/initiate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(body),
+        });
+        const data = await response.json();
+        if (response.ok) {
+            if (data.response_type === 'clarification') {
+                const clarificationMessage = {
+                    role: 'model', text: data.message, choices: data.choices,
+                    original_intent: data.original_intent, id: Date.now()
+                };
+                setHistory(prev => [...prev, clarificationMessage]);
+            } else {
+                setRagCompany(data.company_name);
+                setHistory(prev => [...prev, { role: 'model', text: data.message, id: Date.now() }]);
+            }
+        } else {
+             setHistory(prev => [...prev, { role: 'model', text: data.message || "An error occurred.", id: Date.now() }]);
+             exitRagMode(); 
         }
     };
 
     const askRagQuestion = async (question) => {
         const token = localStorage.getItem('stockbot_token');
-        try {
-            const response = await fetch(`${API_BASE_URL}/rag/query`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ company_name: ragCompany, question: question }),
-            });
-
-            if (!response.ok) throw new Error(`RAG query failed: ${response.statusText}`);
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedText = '';
-            const newMessageId = Date.now();
-            setHistory(prev => [...prev, { role: 'model', text: '', id: newMessageId }]);
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                accumulatedText += decoder.decode(value, { stream: true });
-                setHistory(prev => prev.map(msg =>
-                    msg.id === newMessageId ? { ...msg, text: accumulatedText } : msg
-                ));
-            }
-        } catch (error) {
-            console.error("RAG Query Error:", error);
-            setHistory(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error answering that question.", id: Date.now() }]);
+        const response = await fetch(`${API_BASE_URL}/rag/query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ company_name: ragCompany, question: question }),
+        });
+        if (!response.ok) throw new Error(`RAG query failed: ${response.statusText}`);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedText = '';
+        const newMessageId = Date.now();
+        setHistory(prev => [...prev, { role: 'model', text: '', id: newMessageId }]);
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            accumulatedText += decoder.decode(value, { stream: true });
+            setHistory(prev => prev.map(msg =>
+                msg.id === newMessageId ? { ...msg, text: accumulatedText } : msg
+            ));
         }
     };
 
@@ -198,7 +222,12 @@ function ChatWindow() {
             <header className="chat-header">
                 <h1>Your Stock Bot</h1>
                 <div className="header-controls">
-                    <button onClick={startRagAnalysis} className="rag-btn">Analyze 10-K Report</button>
+                    {/* --- FIX: Conditionally render the correct button --- */}
+                    {isRagMode ? (
+                        <button onClick={exitRagMode} className="rag-btn-exit">Exit Analysis</button>
+                    ) : (
+                        <button onClick={startRagAnalysis} className="rag-btn">Analyze 10-K Reports</button>
+                    )}
                     <span>Welcome, {user ? user.email : '...'}</span>
                     <button onClick={handleLogout} className="logout-btn">Logout</button>
                 </div>
@@ -211,7 +240,7 @@ function ChatWindow() {
                         text={msg.text}
                         choices={msg.choices}
                         original_intent={msg.original_intent}
-                        onClarificationSelect={handleNormalChat} // Clarifications always go to normal chat
+                        onClarificationSelect={handleSendMessage}
                     />
                 ))}
                 {isLoading && (
