@@ -222,12 +222,7 @@ function ChatWindow() {
             <header className="chat-header">
                 <h1>Your Stock Bot</h1>
                 <div className="header-controls">
-                    {/* --- FIX: Conditionally render the correct button --- */}
-                    {isRagMode ? (
-                        <button onClick={exitRagMode} className="rag-btn-exit">Exit Analysis</button>
-                    ) : (
-                        <button onClick={startRagAnalysis} className="rag-btn">Analyze 10-K Reports</button>
-                    )}
+                    {/* Button is now removed from here */}
                     <span>Welcome, {user ? user.email : '...'}</span>
                     <button onClick={handleLogout} className="logout-btn">Logout</button>
                 </div>
@@ -251,7 +246,13 @@ function ChatWindow() {
                     </div>
                 )}
             </div>
-            <ChatInput onSendMessage={handleSendMessage} />
+            {/* --- FIX: Pass the RAG state and functions to ChatInput --- */}
+            <ChatInput 
+                onSendMessage={handleSendMessage} 
+                isRagMode={isRagMode}
+                onStartRag={startRagAnalysis}
+                onExitRag={exitRagMode}
+            />
         </div>
     );
 }

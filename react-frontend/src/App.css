@@ -34,6 +34,81 @@ body {
     background-repeat: no-repeat;
 }
 
+
+
+.full-page-chat-wrapper {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    max-width: 1920px;
+    padding: 70px 2rem 2rem 2rem;
+    gap: 2rem;
+}
+
+/* Chat Sidebar Styles */
+.chat-sidebar {
+    width: 260px;
+    height: 90vh;
+    max-height: 850px;
+    background-color: var(--surface-color);
+    border-radius: 16px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+}
+
+.new-chat-btn {
+    background-color: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 1rem;
+}
+
+.new-chat-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.chat-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.chat-session-item {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.3s;
+}
+
+.chat-session-item:hover {
+    background-color: var(--bot-message-bg);
+}
+
+.chat-session-item.active {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+/* Adjust the main chat container to fit in the new layout */
+.full-page-chat-wrapper .chat-container {
+    flex-grow: 1; /* Allow chat window to take remaining space */
+}
+
 /* --- Keyframes for animations --- */
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(20px); }
@@ -103,7 +178,7 @@ body {
 
 /* Chat container (center) */
 .chat-container {
-    width: 600px;
+    width: 700px;
     height: 90vh;
     max-height: 850px;
     background-color: var(--surface-color);
@@ -154,90 +229,32 @@ body {
     z-index: 10;
 }
 
-/* Add these styles to your App.css file */
-
+/* --- Message Styles --- */
 .message {
     display: flex;
     max-width: 80%;
-    flex-direction: column; /* Ensure content stacks vertically */
+    flex-direction: column;
 }
 
 .message-content {
     padding: 0.8rem 1.2rem;
     border-radius: 12px;
     line-height: 1.6;
-    position: relative; /* For absolute positioning if needed */
 }
 
-/* For bot messages */
-.bot-message {
-    align-self: flex-start;
-}
+.bot-message { align-self: flex-start; }
+.bot-message .message-content { background-color: var(--bot-message-bg); border-top-left-radius: 0; }
+.user-message { align-self: flex-end; }
+.user-message .message-content { background-color: var(--user-message-bg); border-top-right-radius: 0; }
 
-.bot-message .message-content {
-    background-color: var(--bot-message-bg);
-    border-top-left-radius: 0;
-}
+.clarification-choices { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; width: 100%; }
+.clarification-btn { background-color: #333; border: 1px solid #555; color: var(--text-color); padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; transition: background-color 0.3s, border-color 0.3s; text-align: left; width: 100%; font-family: var(--font-family); }
+.clarification-btn:hover { background-color: #444; border-color: var(--primary-color); }
+.clarification-btn strong { color: var(--primary-color); }
 
-/* For user messages */
-.user-message {
-    align-self: flex-end;
-}
-
-.user-message .message-content {
-    background-color: var(--user-message-bg);
-    border-top-right-radius: 0;
-}
-
-/* Clarification choices styling */
-.clarification-choices {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    width: 100%; /* Ensure full width */
-}
-
-.clarification-btn {
-    background-color: #333;
-    border: 1px solid #555;
-    color: var(--text-color);
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s, border-color 0.3s;
-    text-align: left;
-    width: 100%;
-    font-family: var(--font-family);
-}
-
-.clarification-btn:hover {
-    background-color: #444;
-    border-color: var(--primary-color);
-}
-
-.clarification-btn strong {
-    color: var(--primary-color);
-}
-
-/* For markdown content inside messages */
-.message-content p {
-    margin-bottom: 0.5em;
-}
-
-.message-content p:last-child {
-    margin-bottom: 0;
-}
-
-.message-content ul, 
-.message-content ol {
-    margin-left: 1.2em;
-}
-
-.message-content .katex {
-    font-size: 1.1em;
-    color: var(--text-color);
-}
+.message-content p { margin-bottom: 0.5em; }
+.message-content p:last-child { margin-bottom: 0; }
+.message-content ul, .message-content ol { margin-left: 1.2em; }
 
 /* --- Market Movers Panel Styles --- */
 .movers-list { display: flex; flex-direction: column; gap: 1rem; }
@@ -271,26 +288,18 @@ body {
 
 .chat-box { flex-grow: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
 
-
 .typing-indicator { display: flex; align-items: center; gap: 5px; }
-.typing-indicator span { 
-    width: 8px; 
-    height: 8px; 
-    background-color: #888; 
-    border-radius: 50%; 
-    animation: typing-pulse 1.4s infinite ease-in-out both; 
-}
+.typing-indicator span { width: 8px; height: 8px; background-color: #888; border-radius: 50%; animation: typing-pulse 1.4s infinite ease-in-out both; }
 .typing-indicator span:nth-child(1) { animation-delay: 0s; }
 .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
 .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
 
-
-
+/* --- Chat Input Area (UPDATED) --- */
 .chat-input-area { padding: 1rem 1.5rem; border-top: 1px solid #333; background-color: #242424; }
-.chat-input-area form { display: flex; gap: 0.5rem; }
+.chat-input-area form { display: flex; gap: 0.75rem; align-items: center; }
 
 .chat-input-area input {
-    flex-grow: 1;
+    flex-grow: 1; /* This makes the input take up the available space */
     padding: 0.8rem 1rem;
     border: 1px solid #555;
     border-radius: 8px;
@@ -299,10 +308,57 @@ body {
     font-size: 1rem;
     outline: none;
     transition: border-color 0.3s;
+    height: 48px; /* Match button height */
 }
 .chat-input-area input:focus { border-color: var(--primary-color); }
-.chat-input-area button { background-color: var(--primary-color); border: none; border-radius: 8px; width: 48px; height: 48px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: background-color 0.3s; }
+
+.chat-input-area button {
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: 8px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    flex-shrink: 0; /* Prevent send button from shrinking */
+}
 .chat-input-area button:hover { background-color: #3e8e41; }
+
+/* --- Improved RAG Button Styles (NEW) --- */
+.rag-action-btn {
+    padding: 0 1.25rem; /* Added more horizontal padding */
+    height: 48px;
+    min-width: 140px; /* Gave the button a minimum width to prevent squishing */
+    border: 1px solid var(--primary-color);
+    background-color: transparent;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0; /* Prevent this button from shrinking */
+    transition: all 0.3s ease;
+    text-align: center; /* Ensure text is centered */
+}
+
+
+.rag-action-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.rag-action-btn.exit {
+    background-color: rgb(211, 69, 69);
+    border-color: #f44336;
+    color: white;
+}
+
+.rag-action-btn.exit:hover {
+    background-color: #bd160a;
+    color: white;
+}
 
 /* --- Auth Page Styles --- */
 .auth-container { width: 100%; max-width: 400px; }
@@ -324,56 +380,19 @@ body {
 
 /* --- Responsive Adjustments --- */
 @media (max-width: 1600px) {
-    .chat-container {
-        width: 500px;
-    }
-    
-    .main-content-wrapper > .side-panel:first-child,
-    .right-column {
-        width: 280px;
-    }
+    .chat-container { width: 500px; }
+    .main-content-wrapper > .side-panel:first-child, .right-column { width: 280px; }
 }
 
 @media (max-width: 1400px) {
-    .chat-container {
-        width: 450px;
-    }
-    
-    .main-content-wrapper > .side-panel:first-child,
-    .right-column {
-        width: 250px;
-    }
+    .chat-container { width: 450px; }
+    .main-content-wrapper > .side-panel:first-child, .right-column { width: 250px; }
 }
 
 @media (max-width: 1200px) {
-    .main-content-wrapper {
-        flex-wrap: wrap;
-        align-content: flex-start;
-        padding-top: 90px;
-    }
-    
-    .main-content-wrapper > .side-panel:first-child {
-        order: 1;
-        width: 100%;
-        height: auto;
-        max-height: 300px;
-    }
-    
-    .chat-container {
-        order: 2;
-        width: 100%;
-        height: 60vh;
-    }
-    
-    .right-column {
-        order: 3;
-        flex-direction: row;
-        width: 100%;
-        height: auto;
-    }
-    
-    .right-column .side-panel {
-        width: 50%;
-        height: 300px;
-    }
+    .main-content-wrapper { flex-wrap: wrap; align-content: flex-start; padding-top: 90px; }
+    .main-content-wrapper > .side-panel:first-child { order: 1; width: 100%; height: auto; max-height: 300px; }
+    .chat-container { order: 2; width: 100%; height: 60vh; }
+    .right-column { order: 3; flex-direction: row; width: 100%; height: auto; }
+    .right-column .side-panel { width: 50%; height: 300px; }
 }

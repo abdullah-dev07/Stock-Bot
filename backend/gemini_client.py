@@ -99,7 +99,7 @@ def get_intent(user_prompt, history=[]):
         return {"intent": "general_knowledge", "entity": user_prompt}
 
 
-def generate_prediction_response(prediction_data):
+def generate_prediction_response(prediction_data, user_prompt):
     """
     Generates a stock prediction analysis based on provided data.
     """
@@ -178,10 +178,6 @@ def generate_grounded_response(prompt, history=[]):
         role = 'user' if msg['role'] == 'user' else 'model'
         model_contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg['text'])]))
 
-    for msg in recent_history:
-        role = 'user' if msg['role'] == 'user' else 'model'
-        model_contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg['text'])]))    
-    
     # Add the current user prompt
     prompt_with_disclaimer = f"""
     {prompt}

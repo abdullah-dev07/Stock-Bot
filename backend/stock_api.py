@@ -6,6 +6,11 @@ import requests
 import csv
 from dotenv import load_dotenv
 import io
+from sec_api import QueryApi
+from bs4 import BeautifulSoup
+import time
+
+
 
 
 load_dotenv()
@@ -280,21 +285,73 @@ def get_market_news():
 
 def get_10k_filing_text(ticker):
     """
-    Fetches the full text of the latest 10-k filing for a given ticker using sec-api.io.
+    Fetches and cleans the text of the latest 10-K filing for a given ticker
+    using a more robust parsing method to capture all content.
     """
     if not SEC_API_KEY:
         print("[STOCK API] ERROR: SEC_API_KEY not found in environment variables.")
         return None
+
+    print(f"\n[STOCK API] Using sec-api.io to find latest 10-K for ticker: '{ticker}'")
     
-    print(f"\n[STOCK API] Calling sec-api.io to get 10-K for ticker: '{ticker}'")
-    render_api_url = f"https://api.sec-api.io/filing-reader?token={SEC_API_KEY}&type=10-K&ticker={ticker}&format=text"
-
     try:
-        response = requests.get(render_api_url)
+        # Step 1: Use the Query API to find the latest 10-K filing
+        queryApi = QueryApi(api_key=SEC_API_KEY)
+        query = {
+          "query": f'ticker:"{ticker}" AND formType:"10-K"',
+          "from": "0",
+          "size": "1",
+          "sort": [{ "filedAt": { "order": "desc" } }]
+        }
+        
+        filings = queryApi.get_filings(query)
+        
+        if not filings['filings']:
+            print(f"[STOCK API] No 10-K filings found for {ticker}.")
+            return None
+
+        # Step 2: Get the original SEC.gov URL for the filing
+        sec_url = filings['filings'][0]['linkToFilingDetails']
+        print(f"[STOCK API] Found SEC URL: {sec_url}")
+
+        # Construct the correct Download API URL
+        file_path = sec_url.split("https://www.sec.gov/Archives/edgar/data/")[1]
+        download_url = f"https://archive.sec-api.io/{file_path}?token={SEC_API_KEY}"
+        print(f"[STOCK API] Constructed Download API URL: {download_url}")
+        
+        # Step 3: Download the content from the Download API
+        headers = {'User-Agent': 'StockBot/1.0 abdullah.muhammad@devsinc.com'}
+        response = requests.get(download_url, headers=headers, timeout=60) 
         response.raise_for_status()
-        return response.text
-    except requests.exceptions.RequestException as e:
-        print(f"[STOCK API] Network/HTTP Error fetching 10-K for {ticker}: {e}")
+        
+        # --- FIX: More robust HTML parsing logic ---
+        html_content = response.text
+        soup = BeautifulSoup(html_content, 'lxml')
+        
+        # First, find all tables, convert them to Markdown, and replace them with a placeholder
+        markdown_tables = []
+        for table in soup.find_all('table'):
+            table_str = ""
+            for row in table.find_all('tr'):
+                row_text = [cell.get_text(strip=True) for cell in row.find_all(['td', 'th'])]
+                table_str += " | ".join(row_text) + "\n"
+            
+            placeholder = f"---TABLE_PLACEHOLDER_{len(markdown_tables)}---"
+            markdown_tables.append(table_str)
+            table.replace_with(placeholder)
+
+        # Now, get all the remaining text from the document
+        clean_text = soup.get_text(separator='\n', strip=True)
+        
+        # Finally, substitute the placeholders back with the formatted Markdown tables
+        for i, table_md in enumerate(markdown_tables):
+            clean_text = clean_text.replace(f"---TABLE_PLACEHOLDER_{i}---", f"\n\n{table_md}\n\n")
+        
+        return clean_text
+
+    except requests.exceptions.Timeout:
+        print(f"[STOCK API] Timeout error while fetching 10-K for {ticker}.")
         return None
-
-
+    except Exception as e:
+        print(f"[STOCK API] An error occurred fetching 10-K for {ticker}: {e}")
+        return None

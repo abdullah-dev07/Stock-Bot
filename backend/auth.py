@@ -66,10 +66,16 @@ async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-        return {"email": email}
+        
+        user = auth.get_user_by_email(email)
+        return {"email": user.email, "uid": user.uid}
+    
     except jwt.PyJWTError:
         raise credentials_exception
-
+    except auth.UserNotFoundError:
+        raise credentials_exception
+    
+    
 # --- API Routes ---
 
 @auth_router.post("/signup")
