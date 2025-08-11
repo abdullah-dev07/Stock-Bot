@@ -37,7 +37,6 @@ REST_API_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPa
 # The tokenUrl must now include the /auth prefix.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
-# --- Helper Functions ---
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -46,9 +45,8 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 
-
 async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)):
-    """Dependency to verify token and get user data."""
+    """Dependency to verify token and get user data, including UID."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -69,7 +67,7 @@ async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)
         
         user = auth.get_user_by_email(email)
         return {"email": user.email, "uid": user.uid}
-    
+
     except jwt.PyJWTError:
         raise credentials_exception
     except auth.UserNotFoundError:

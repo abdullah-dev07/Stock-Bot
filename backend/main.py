@@ -1,7 +1,7 @@
 # FILE: backend/main.py
 # PURPOSE: Main FastAPI application file, now acting as a pure API server.
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -76,7 +76,7 @@ class NewChatRequest(BaseModel):
 class ChatHistoryRequest(BaseModel):
     chat_id: str
     message: str
-
+    context : dict = {}
 
 
 # --- Helper Functions ---
@@ -155,6 +155,11 @@ async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
     user_message = payload.message
     context = payload.context
     history = payload.history
+    user_id = user['uid']
+    chat_id = payload.chat_id if 'chat_id' in payload else None
+
+    
+    await asyncio.to_thread(firebase_db.add_message_to_chat, user_id, chat_id, "user", user_message)
 
     print(f"\n[APP] User '{user.get('email')}' sent message: '{user_message}' with history length: {len(history)}")
 
@@ -168,11 +173,13 @@ async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
                 if not prediction_data:
                     return StreamingResponse(iter([f"Sorry, I couldn't gather enough data to make a prediction for {ticker}."]), media_type='text/plain')
                 sync_generator = gemini_client.generate_prediction_response(prediction_data, user_message)
-                return StreamingResponse(iterate_in_threadpool(sync_generator), media_type='text/plain')
+                return StreamingResponse(
+    save_and_yield(sync_generator, user_id, chat_id, "assistant"),
+    media_type="text/plain"
+)
+
             else:
                 return proceed_with_intent(intent, ticker, ticker)
-
-
 
         intent_data = gemini_client.get_intent(user_message, history)
         intent = intent_data.get("intent", "general_knowledge")
@@ -210,12 +217,17 @@ async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
                 if not prediction_data:
                     return StreamingResponse(iter([f"Sorry, I couldn't gather enough data to make a prediction for {ticker_to_use}."]), media_type="text/plain")
                 sync_generator = gemini_client.generate_prediction_response(prediction_data, user_message)
-                return StreamingResponse(iterate_in_threadpool(sync_generator), media_type="text/plain")
+                return StreamingResponse(
+                save_and_yield(sync_generator, user_id, chat_id, "assistant"),
+                media_type="text/plain")
 
         else: 
             sync_generator = gemini_client.generate_grounded_response(user_message, history)
-            async_iterator = iterate_in_threadpool(sync_generator)
+            async_iterator = iterate_in_threadpool(
+                save_and_yield(sync_generator, user_id, chat_id, "assistant")
+            )
             return StreamingResponse(async_iterator, media_type="text/plain")
+
     
     except Exception as e:
         print(f"[APP] An unexpected error occurred: {type(e).__name__} - {e}")
@@ -223,18 +235,31 @@ async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
     
 
 
+def save_and_yield(generator, user_id, chat_id, role):
+    buffer = []
+    for chunk in generator:
+        buffer.append(chunk)
+        yield chunk
+    # After streaming finishes, save the full text
+    firebase_db.add_message_to_chat(user_id, chat_id, role, "".join(buffer))
+
+
 
 @app.post("/chats", tags=["Chat History"])
 async def create_chat_session(payload: NewChatRequest, user: dict = Depends(get_current_user)):
     """Creates a new chat session and returns the new chat ID."""
+
+    print(f"[APP] Creating new chat session for user: {user.get('email')}")
     user_id = user['uid']
     chat_id = firebase_db.create_new_chat(user_id, payload.message)
     firebase_db.add_message_to_chat(user_id, chat_id, "user", payload.message)
+    print(f"[APP] Created new chat session with ID: {chat_id} for user {user_id}")
     return {"chat_id": chat_id}
 
 @app.get("/chats", tags=["Chat History"])
 async def get_all_chats(user: dict = Depends(get_current_user)):
     """ Gets a list of all chat sessions for the current user """
+    print(f"[APP] Fetching chat sessions for user: {user.get('email')}")
     user_id = user['uid']
     chat_list = firebase_db.get_chat_list(user_id)
     return chat_list
@@ -242,10 +267,22 @@ async def get_all_chats(user: dict = Depends(get_current_user)):
 
 @app.get("/chats/{chat_id}", tags=["Chat History"])
 async def get_chat_messages(chat_id:str, user:dict = Depends(get_current_user)):
+    print(f"[APP] Fetching messages for chat ID: {chat_id} for user: {user.get('email')}")
     """Gets all messages for a specific chat session."""
     user_id = user['uid']
     history = firebase_db.get_chat_history(user_id, chat_id)
     return history
+
+@app.delete("/chats/{chat_id}", tags=["Chat History"])
+async def delete_chat(chat_id: str, user: dict = Depends(get_current_user)):
+    """Deletes a specific chat session."""
+    user_id = user['uid']
+    success = firebase_db.delete_chat(user_id, chat_id)
+    if success:
+        return {"message": "Chat deleted successfully."}
+    else:
+        raise HTTPException(status_code=404, detail="Chat not found or could not be deleted.")
+
 
 
 @app.post("/rag/initiate", tags=["RAG"])
@@ -323,7 +360,7 @@ async def serve_react_app(full_path:str):
     if os.path.exists(index_path):
         return FileResponse(index_path)
     
-    return JSONResponse(status_code=404, content={"message":"Frontend not found"})
+    return JSONResponse(status_code=500, content={"message":"Frontend not found"})
 
     
 

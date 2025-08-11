@@ -104,6 +104,49 @@ body {
     font-weight: 600;
 }
 
+
+
+/* Add to your App.css file */
+
+.chat-session-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-session-title {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 0.5rem;
+}
+
+.delete-chat-btn {
+    background: none;
+    border: none;
+    color: #a70000;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.chat-session-item:hover .delete-chat-btn {
+    opacity: 1; /* Show on hover */
+}
+
+.delete-chat-btn:hover {
+    color: #d62518; /* Red on hover */
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+
 /* Adjust the main chat container to fit in the new layout */
 .full-page-chat-wrapper .chat-container {
     flex-grow: 1; /* Allow chat window to take remaining space */

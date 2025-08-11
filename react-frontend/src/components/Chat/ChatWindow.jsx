@@ -4,28 +4,25 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Message from './Message';
 import ChatInput from './ChatInput';
+import ChatSidebar from './ChatSidebar';
 
 const API_BASE_URL = 'http://localhost:8000';
 
 function ChatWindow() {
-    const [history, setHistory] = useState([
-        { role: 'model', text: "Hello! How can I help you today?", id: Date.now() }
-    ]);
+    // --- STATE MANAGEMENT ---
+    const [chatSessions, setChatSessions] = useState([]);
+    const [activeChatId, setActiveChatId] = useState(null);
+    const [history, setHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [user, setUser] = useState(null);
+    const [isRagMode, setIsRagMode] = useState(false);
+    const [ragCompany, setRagCompany] = useState(null);
     const chatBoxRef = useRef(null);
     const navigate = useNavigate();
 
-    const [isRagMode, setIsRagMode] = useState(false);
-    const [ragCompany, setRagCompany] = useState(null);
-
+    // --- AUTH & USER FETCHING ---
     const handleLogout = useCallback(async () => {
         localStorage.removeItem('stockbot_token');
-        try {
-            await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST' });
-        } catch (error) {
-            console.error("Logout request failed:", error);
-        }
         navigate('/login');
     }, [navigate]);
 
@@ -37,22 +34,36 @@ function ChatWindow() {
                     const response = await fetch(`${API_BASE_URL}/auth/users/me`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    if (response.ok) {
-                        const userData = await response.json();
-                        setUser(userData);
-                    } else {
-                        handleLogout();
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch user data:", error);
-                    handleLogout();
-                }
-            } else {
-                navigate('/login');
-            }
+                    if (response.ok) setUser(await response.json());
+                    else handleLogout();
+                } catch (error) { handleLogout(); }
+            } else { navigate('/login'); }
         };
         fetchUser();
     }, [navigate, handleLogout]);
+
+    // --- CHAT HISTORY MANAGEMENT ---
+    const fetchChatSessions = useCallback(async () => {
+        const token = localStorage.getItem('stockbot_token');
+        const response = await fetch(`${API_BASE_URL}/chats`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            setChatSessions(data);
+            if (data.length > 0 && !activeChatId) {
+                selectChat(data[0].id);
+            } else if (data.length === 0) {
+                handleNewChat();
+            }
+        }
+    }, []); // <-- Dependency array is intentionally empty to prevent re-fetching
+
+    useEffect(() => {
+        if (user) {
+            fetchChatSessions();
+        }
+    }, [user, fetchChatSessions]);
 
     useEffect(() => {
         if (chatBoxRef.current) {
@@ -60,7 +71,51 @@ function ChatWindow() {
         }
     }, [history]);
 
+    const selectChat = async (chatId) => {
+        if (activeChatId === chatId) return;
+        setIsLoading(true);
+        setActiveChatId(chatId);
+        setIsRagMode(false);
+        setRagCompany(null);
+        const token = localStorage.getItem('stockbot_token');
+        const response = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        const formattedHistory = data.map(msg => ({ ...msg, id: msg.id || Date.now() }));
+        setHistory(formattedHistory);
+        setIsLoading(false);
+    };
 
+    const handleNewChat = () => {
+        setActiveChatId(null);
+        setHistory([{ role: 'model', text: "Hello! How can I help you today?", id: Date.now() }]);
+        setIsRagMode(false);
+        setRagCompany(null);
+    };
+
+    const handleDeleteChat = async (chatIdToDelete) => {
+        const token = localStorage.getItem('stockbot_token');
+        try {
+            const response = await fetch(`${API_BASE_URL}/chats/${chatIdToDelete}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                if (activeChatId === chatIdToDelete) {
+                    handleNewChat();
+                }
+                fetchChatSessions();
+            } else {
+                console.error("Failed to delete chat session on the server.");
+            }
+        } catch (error) {
+            console.error("Error deleting chat:", error);
+        }
+    };
+
+    // --- RAG MODE MANAGEMENT ---
     const startRagAnalysis = () => {
         setIsRagMode(true);
         setRagCompany(null);
@@ -71,7 +126,6 @@ function ChatWindow() {
         }]);
     };
 
-  
     const exitRagMode = () => {
         setIsRagMode(false);
         setRagCompany(null);
@@ -82,6 +136,7 @@ function ChatWindow() {
         }]);
     };
 
+    // --- CORE MESSAGE SENDING LOGIC ---
     const handleSendMessage = async (messageOrPayload) => {
         const isPayloadObject = typeof messageOrPayload === 'object' && messageOrPayload !== null;
         const payload = isPayloadObject ? messageOrPayload : { message: messageOrPayload };
@@ -101,8 +156,22 @@ function ChatWindow() {
 
     const handleNormalChat = async (payload) => {
         setIsLoading(true);
-        const fullPayload = { ...payload, history: history.slice(1) };
         const token = localStorage.getItem('stockbot_token');
+        let currentChatId = activeChatId;
+
+        if (!currentChatId) {
+            const res = await fetch(`${API_BASE_URL}/chats`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ message: payload.message }),
+            });
+            const data = await res.json();
+            currentChatId = data.chat_id;
+            setActiveChatId(currentChatId);
+            fetchChatSessions();
+        }
+
+        const fullPayload = { ...payload, chat_id: currentChatId };
 
         try {
             const response = await fetch(`${API_BASE_URL}/chat`, {
@@ -116,10 +185,7 @@ function ChatWindow() {
             if (contentType && contentType.includes("application/json")) {
                 const data = await response.json();
                 if (data.response_type === 'clarification') {
-                    const clarificationMessage = {
-                        role: 'model', text: data.message, choices: data.choices,
-                        original_intent: data.original_intent, id: Date.now()
-                    };
+                    const clarificationMessage = { role: 'model', text: data.message, choices: data.choices, original_intent: data.original_intent, id: Date.now() };
                     setHistory(prev => [...prev, clarificationMessage]);
                 }
             } else {
@@ -133,21 +199,17 @@ function ChatWindow() {
                     const { done, value } = await reader.read();
                     if (done) break;
                     accumulatedText += decoder.decode(value, { stream: true });
-                    setHistory(prev => prev.map(msg =>
-                        msg.id === newMessageId ? { ...msg, text: accumulatedText } : msg
-                    ));
+                    setHistory(prev => prev.map(msg => msg.id === newMessageId ? { ...msg, text: accumulatedText } : msg));
                 }
             }
         } catch (error) {
             console.error("Chat Error:", error);
-            setHistory(prev => [...prev, {
-                role: 'model', text: "Sorry, something went wrong. Please try again.", id: Date.now()
-            }]);
+            setHistory(prev => [...prev, { role: 'model', text: "Sorry, something went wrong.", id: Date.now() }]);
         } finally {
             setIsLoading(false);
         }
     };
-
+    
     const handleRagChat = async (payload) => {
         setIsLoading(true);
         try {
@@ -218,41 +280,48 @@ function ChatWindow() {
     };
 
     return (
-        <div className="chat-container">
-            <header className="chat-header">
-                <h1>Your Stock Bot</h1>
-                <div className="header-controls">
-                    {/* Button is now removed from here */}
-                    <span>Welcome, {user ? user.email : '...'}</span>
-                    <button onClick={handleLogout} className="logout-btn">Logout</button>
-                </div>
-            </header>
-            <div className="chat-box" ref={chatBoxRef}>
-                {history.map((msg) => (
-                    <Message
-                        key={msg.id}
-                        role={msg.role}
-                        text={msg.text}
-                        choices={msg.choices}
-                        original_intent={msg.original_intent}
-                        onClarificationSelect={handleSendMessage}
-                    />
-                ))}
-                {isLoading && (
-                    <div className="message bot-message">
-                        <div className="message-content typing-indicator">
-                            <span></span><span></span><span></span>
-                        </div>
-                    </div>
-                )}
-            </div>
-            {/* --- FIX: Pass the RAG state and functions to ChatInput --- */}
-            <ChatInput 
-                onSendMessage={handleSendMessage} 
-                isRagMode={isRagMode}
-                onStartRag={startRagAnalysis}
-                onExitRag={exitRagMode}
+        <div className="full-page-chat-wrapper">
+            <ChatSidebar 
+                sessions={chatSessions} 
+                activeChatId={activeChatId}
+                onSelectChat={selectChat} 
+                onNewChat={handleNewChat}
+                onDeleteChat={handleDeleteChat} 
             />
+            <div className="chat-container">
+                <header className="chat-header">
+                    <h1>Your Stock Bot</h1>
+                    <div className="header-controls">
+                        <span>Welcome, {user ? user.email : '...'}</span>
+                        <button onClick={handleLogout} className="logout-btn">Logout</button>
+                    </div>
+                </header>
+                <div className="chat-box" ref={chatBoxRef}>
+                    {history.map((msg) => (
+                        <Message
+                            key={msg.id}
+                            role={msg.role}
+                            text={msg.text}
+                            choices={msg.choices}
+                            original_intent={msg.original_intent}
+                            onClarificationSelect={handleSendMessage}
+                        />
+                    ))}
+                    {isLoading && (
+                        <div className="message bot-message">
+                            <div className="message-content typing-indicator">
+                                <span></span><span></span><span></span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <ChatInput 
+                    onSendMessage={handleSendMessage} 
+                    isRagMode={isRagMode}
+                    onStartRag={startRagAnalysis}
+                    onExitRag={exitRagMode}
+                />
+            </div>
         </div>
     );
 }

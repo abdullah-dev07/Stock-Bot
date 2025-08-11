@@ -20,6 +20,7 @@ def get_chat_history(user_id, chat_id):
     try:
         messages_ref = db.collection('users').document(user_id).collection('chats').document(chat_id).collection('messages').order_by('timestamp')
         messages = messages_ref.stream()
+        # Include the document ID in the message object
         history = [{"id": msg.id, **msg.to_dict()} for msg in messages]
         return history
     except Exception as e:
@@ -31,7 +32,7 @@ def create_new_chat(user_id, first_message_text):
     try:
         chats_ref = db.collection('users').document(user_id).collection('chats')
         new_chat = {
-            "title": first_message_text[:30] + "..." if len(first_message_text) > 30 else first_message_text,
+            "title": first_message_text[:35] + "..." if len(first_message_text) > 35 else first_message_text,
             "createdAt": datetime.now(timezone.utc)
         }
         update_time, chat_ref = chats_ref.add(new_chat)
@@ -52,3 +53,18 @@ def add_message_to_chat(user_id, chat_id, role, text):
     except Exception as e:
         print(f"Error adding message to chat {chat_id}: {e}")
 
+
+def delete_chat(user_id, chat_id):
+    """Deletes a specific chat session for a given user."""
+    try:
+        chat_ref = db.collection('users').document(user_id).collection('chats').document(chat_id)
+        messages_ref = chat_ref.collection('messages')
+        docs = messages_ref.stream()
+        for doc in docs:
+            doc.reference.delete()
+        chat_ref.delete()                                                                               
+        print(f"Chat {chat_id} deleted successfully for user {user_id}.")                                                                                                                                                                   
+        return True                                                                                                                                                     
+    except Exception as e:
+        print(f"Error deleting chat {chat_id} for user {user_id}: {e}")
+        return False
