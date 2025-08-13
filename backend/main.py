@@ -243,7 +243,6 @@ async def create_chat_session(payload: NewChatRequest, user: dict = Depends(get_
     print(f"[APP] Creating new chat session for user: {user.get('email')}")
     user_id = user['uid']
     chat_id = firebase_db.create_new_chat(user_id, payload.message)
-    firebase_db.add_message_to_chat(user_id, chat_id, "user", payload.message)
     print(f"[APP] Created new chat session with ID: {chat_id} for user {user_id}")
     return {"chat_id": chat_id}
 
