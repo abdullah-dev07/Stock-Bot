@@ -94,6 +94,7 @@ function ChatWindow() {
         setRagCompany(null);
     };
 
+    // --- UPDATED FUNCTION TO HANDLE DELETING A CHAT ---
     const handleDeleteChat = async (chatIdToDelete) => {
         const token = localStorage.getItem('stockbot_token');
         try {
@@ -103,10 +104,25 @@ function ChatWindow() {
             });
 
             if (response.ok) {
+                const currentSessions = [...chatSessions];
+                const deletedIndex = currentSessions.findIndex(s => s.id === chatIdToDelete);
+                
+                // Update the local state immediately for a responsive UI
+                const updatedSessions = currentSessions.filter(s => s.id !== chatIdToDelete);
+                setChatSessions(updatedSessions);
+
+                // If the deleted chat was the active one, decide which chat to show next
                 if (activeChatId === chatIdToDelete) {
-                    handleNewChat();
+                    if (updatedSessions.length > 0) {
+                        // Select the next chat, or the new last one if the deleted chat was at the end
+                        const nextIndex = Math.min(deletedIndex, updatedSessions.length - 1);
+                        selectChat(updatedSessions[nextIndex].id);
+                    } else {
+                        // If no chats are left, start a new one
+                        handleNewChat();
+                    }
                 }
-                fetchChatSessions();
+                // If the deleted chat was not active, do nothing and stay on the current chat.
             } else {
                 console.error("Failed to delete chat session on the server.");
             }
@@ -114,7 +130,6 @@ function ChatWindow() {
             console.error("Error deleting chat:", error);
         }
     };
-
     // --- RAG MODE MANAGEMENT ---
     const startRagAnalysis = () => {
         setIsRagMode(true);

@@ -60,7 +60,7 @@ class ChatRequest(BaseModel):
     message: str
     context: dict = {}
     history: List[Dict[str, Any]] = Field(default_factory=list)
-
+    chat_id: str
 
 class RagInitiateRequest(BaseModel):
     company_name: str
@@ -90,14 +90,19 @@ def is_cache_stale(cache_key: str):
         return True
     return datetime.now(timezone.utc) - timestamp > timedelta(minutes=CACHE_DURATION_MINUTES)
 
-def proceed_with_intent(intent: str, ticker: str, entity: str):
+def proceed_with_intent(intent: str, ticker: str, entity: str, user_id: str, chat_id: str):
     """Handles non-streaming intents that result in a stream."""
     if intent == "get_specific_data":
         quote_data = stock_api.get_stock_quote(ticker)
         if not quote_data:
             return StreamingResponse(iter([f"Sorry, I couldn't retrieve valid price data for {ticker}."]), media_type="text/plain")
         
-        return StreamingResponse(gemini_client.generate_response_from_quote(entity, quote_data), media_type="text/plain")
+        return StreamingResponse(save_and_yield(
+            gemini_client.generate_response_from_quote(quote_data, entity),
+            user_id=user_id,  # No user context needed for this response
+            chat_id=chat_id,  # No chat context needed for this response
+            role="assistant"
+        ), media_type="text/plain")
     
     return StreamingResponse(iter(["I'm not sure how to proceed with that request."]), media_type="text/plain")
 
@@ -149,89 +154,76 @@ def get_ipo_calendar(user: dict = Depends(get_current_user)):
         print(f"[CACHE] Serving {cache_key} data from cache.")
     return JSONResponse(content=CACHE[cache_key]["data"] or [])
 
-
-@app.post("/chat", tags=["Application"])
-async def chat(payload: ChatRequest, user: dict = Depends(get_current_user)):
+@app.post("/chat", tags=["Chat"])
+async def chat(payload: ChatHistoryRequest, user: dict = Depends(get_current_user)):
+    user_id = user['uid']
+    chat_id = payload.chat_id
     user_message = payload.message
     context = payload.context
-    history = payload.history
-    user_id = user['uid']
-    chat_id = payload.chat_id if 'chat_id' in payload else None
-
     
+    history = await asyncio.to_thread(firebase_db.get_chat_history, user_id, chat_id)
     await asyncio.to_thread(firebase_db.add_message_to_chat, user_id, chat_id, "user", user_message)
 
-    print(f"\n[APP] User '{user.get('email')}' sent message: '{user_message}' with history length: {len(history)}")
-
-    try:
-        if context.get('awaiting_clarification'):
-            intent = context.get('original_intent')
-            ticker = user_message
-
-            if intent =='get_prediction_or_advice':
-                prediction_data = stock_api.get_prediction_data(ticker)
-                if not prediction_data:
-                    return StreamingResponse(iter([f"Sorry, I couldn't gather enough data to make a prediction for {ticker}."]), media_type='text/plain')
-                sync_generator = gemini_client.generate_prediction_response(prediction_data, user_message)
-                return StreamingResponse(
-    save_and_yield(sync_generator, user_id, chat_id, "assistant"),
-    media_type="text/plain"
-)
-
-            else:
-                return proceed_with_intent(intent, ticker, ticker)
-
-        intent_data = gemini_client.get_intent(user_message, history)
+    if not context.get('awaiting_clarification'):
+        intent_data = await asyncio.to_thread(gemini_client.get_intent, user_message, history)
         intent = intent_data.get("intent", "general_knowledge")
         entity = intent_data.get("entity")
-        
-        print(f"[APP] Gemini identified Intent: '{intent}', Entity: '{entity}'")
+        if intent in ['get_specific_data', 'get_prediction_or_advice'] and entity:
+             matches = await asyncio.to_thread(stock_api.search_ticker_symbols, entity)
+             if matches and len(matches) > 1 and not is_likely_ticker(entity):
+                 return JSONResponse(content={"response_type": "clarification", "message": f"I found a few potential matches for '{entity}'.", "choices": matches, "original_intent": intent})
 
-        if intent == 'get_specific_data' or intent == 'get_prediction_or_advice':
-            if not entity:
-                error_msg = "I need to know which stock you're interested in."
-                return StreamingResponse(iter([error_msg]), media_type="text/plain")
+    async def stream_and_save_response():
+        full_response_text = ""
+        generator = None
+        try:
+            if context.get('awaiting_clarification'):
+                intent = context.get('original_intent')
+                ticker = user_message
+                if intent == 'get_prediction_or_advice':
+                    prediction_data = await asyncio.to_thread(stock_api.get_prediction_data, ticker)
+                    if not prediction_data:
+                        generator = iter([f"Sorry, I couldn't gather enough data for {ticker}."])
+                    else:
+                        generator = gemini_client.generate_prediction_response(prediction_data, user_message)
+                else:
+                    generator = proceed_with_intent(intent, ticker, ticker)
+            else:
+                intent_data = await asyncio.to_thread(gemini_client.get_intent, user_message, history)
+                intent = intent_data.get("intent", "general_knowledge")
+                entity = intent_data.get("entity")
+                print(f"[APP] Gemini identified Intent: '{intent}', Entity: '{entity}'")
+
+                if intent in ['get_specific_data', 'get_prediction_or_advice']:
+                    if not entity:
+                        generator = iter(["I need to know which stock you're interested in."])
+                    else:
+                        ticker_to_use = entity if is_likely_ticker(entity) else (await asyncio.to_thread(stock_api.search_ticker_symbols, entity))[0]['symbol']
+                        
+                        if intent == 'get_specific_data':
+                            generator = proceed_with_intent(intent, ticker_to_use, entity)
+                        elif intent == 'get_prediction_or_advice':
+                            prediction_data = await asyncio.to_thread(stock_api.get_prediction_data, ticker_to_use)
+                            if not prediction_data:
+                                generator = iter([f"Sorry, I couldn't gather enough data for {ticker_to_use}."])
+                            else:
+                                generator = gemini_client.generate_prediction_response(prediction_data, user_message)
+                else: 
+                    generator = gemini_client.generate_grounded_response(user_message, history)
             
-            if is_likely_ticker(entity):
-                ticker_to_use = entity
+            for chunk in generator:
+                full_response_text += chunk
+                yield chunk
             
-            matches = stock_api.search_ticker_symbols(entity)
-            if not matches:
-                return StreamingResponse(iter([f"Sorry, I couldn't find any stock tickers for '{entity}'."]), media_type="text/plain")
+            await asyncio.to_thread(firebase_db.add_message_to_chat, user_id, chat_id, "model", full_response_text)
 
-            if len(matches) > 1:
-                return {
-                    "response_type": "clarification",
-                    "message": f"I found a few potential matches for '{entity}'. Which one did you mean?",
-                    "choices": matches,
-                    "original_intent": intent
-                }
+        except Exception as e:
+            print(f"[APP] An error occurred during chat processing: {type(e).__name__} - {e}")
+            error_message = "Sorry, an internal error occurred."
+            yield error_message
+            await asyncio.to_thread(firebase_db.add_message_to_chat, user_id, chat_id, "model", error_message)
 
-            ticker_to_use = matches[0]['symbol']
-
-            if intent=='get_specific_data':
-                return proceed_with_intent(intent, ticker_to_use, entity)
-            
-            if intent == 'get_prediction_or_advice':
-                prediction_data = stock_api.get_prediction_data(ticker_to_use)
-                if not prediction_data:
-                    return StreamingResponse(iter([f"Sorry, I couldn't gather enough data to make a prediction for {ticker_to_use}."]), media_type="text/plain")
-                sync_generator = gemini_client.generate_prediction_response(prediction_data, user_message)
-                return StreamingResponse(
-                save_and_yield(sync_generator, user_id, chat_id, "assistant"),
-                media_type="text/plain")
-
-        else: 
-            sync_generator = gemini_client.generate_grounded_response(user_message, history)
-            async_iterator = iterate_in_threadpool(
-                save_and_yield(sync_generator, user_id, chat_id, "assistant")
-            )
-            return StreamingResponse(async_iterator, media_type="text/plain")
-
-    
-    except Exception as e:
-        print(f"[APP] An unexpected error occurred: {type(e).__name__} - {e}")
-        return StreamingResponse(iter(["Sorry, an internal error occurred."]), media_type="text/plain", status_code=500)
+    return StreamingResponse(stream_and_save_response(), media_type="text/plain")
     
 
 
@@ -240,9 +232,8 @@ def save_and_yield(generator, user_id, chat_id, role):
     for chunk in generator:
         buffer.append(chunk)
         yield chunk
-    # After streaming finishes, save the full text
     firebase_db.add_message_to_chat(user_id, chat_id, role, "".join(buffer))
-
+    print(f"[APP] Saved full message to chat {chat_id} for user {user_id}.")
 
 
 @app.post("/chats", tags=["Chat History"])
