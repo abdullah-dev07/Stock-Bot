@@ -1,15 +1,10 @@
-# FILE: backend/gemini_client.py
-# PURPOSE: Handles all communication with the Google Gemini API using the new hybrid model.
-
 import os
 import json
 from google import genai
 from google.genai import types
 
-# --- Configuration ---
-# Make sure to set your GEMINI_API_KEY environment variable
 
-# --- NEW: Helper function for conversation summarization ---
+
 def summarize_conversation(history):
     """Uses a fast model to summarize the older part of a conversation."""
     print("[GEMINI] Summarizing older conversation history...")
@@ -44,7 +39,6 @@ def get_intent(user_prompt, history=[]):
     
     client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-    # --- NEW: Sliding Window Logic ---
     context_summary = ""
     if len(history) > 4:
         older_history = history[:-4]
@@ -55,7 +49,6 @@ def get_intent(user_prompt, history=[]):
 
     history_text = "\n".join([f"{msg['role']}: {msg['text']}" for msg in recent_history])
 
-    # Updated prompt with new intents and history
     prompt = f"""
         You are an intent classifier for a stock-focused assistant. Your goal is to categorize the user's LATEST query into one of the following intents.
         
@@ -157,7 +150,6 @@ def generate_grounded_response(prompt, history=[]):
         google_search=types.GoogleSearch()
     )
 
-    # --- NEW: Sliding Window Logic ---
     context_summary = ""
     if len(history) > 4:
         older_history = history[:-4]
@@ -178,7 +170,6 @@ def generate_grounded_response(prompt, history=[]):
         role = 'user' if msg['role'] == 'user' else 'model'
         model_contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg['text'])]))
 
-    # Add the current user prompt
     prompt_with_disclaimer = f"""
     {prompt}
 
@@ -192,7 +183,6 @@ def generate_grounded_response(prompt, history=[]):
         )
 
 
-    # Make the request using the client
     try:
         response = client.models.generate_content_stream(
             model="gemini-2.5-flash",
@@ -207,7 +197,6 @@ def generate_grounded_response(prompt, history=[]):
         # Log the actual error to your server console for debugging
         print(f"An error occurred in the Gemini stream: {type(e).__name__} - {e}")
         
-        # Yield a user-friendly error message to the frontend
         yield "Sorry, an error occurred while generating the response. The request may have been blocked due to safety settings."
 
 def generate_response_from_quote(company, quote_data):

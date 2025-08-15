@@ -1,6 +1,3 @@
-# FILE: backend/stock_api.py
-# PURPOSE: Handles all communication with the Alpha Vantage API.
-
 import os
 import requests
 import csv
@@ -9,7 +6,6 @@ import io
 from sec_api import QueryApi
 from bs4 import BeautifulSoup
 import time
-
 
 
 
@@ -310,11 +306,9 @@ def get_10k_filing_text(ticker):
             print(f"[STOCK API] No 10-K filings found for {ticker}.")
             return None
 
-        # Step 2: Get the original SEC.gov URL for the filing
         sec_url = filings['filings'][0]['linkToFilingDetails']
         print(f"[STOCK API] Found SEC URL: {sec_url}")
 
-        # Construct the correct Download API URL
         file_path = sec_url.split("https://www.sec.gov/Archives/edgar/data/")[1]
         download_url = f"https://archive.sec-api.io/{file_path}?token={SEC_API_KEY}"
         print(f"[STOCK API] Constructed Download API URL: {download_url}")

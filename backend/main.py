@@ -78,8 +78,6 @@ class ChatHistoryRequest(BaseModel):
     message: str
     context : dict = {}
 
-
-# --- Helper Functions ---
 def is_likely_ticker(s: str):
     if not isinstance(s, str): return False
     return s.isupper() and ' ' not in s and 1 <= len(s) <= 5
@@ -106,8 +104,14 @@ def proceed_with_intent(intent: str, ticker: str, entity: str, user_id: str, cha
     
     return StreamingResponse(iter(["I'm not sure how to proceed with that request."]), media_type="text/plain")
 
+def save_and_yield(generator, user_id, chat_id, role):
+    buffer = []
+    for chunk in generator:
+        buffer.append(chunk)
+        yield chunk
+    firebase_db.add_message_to_chat(user_id, chat_id, role, "".join(buffer))
+    print(f"[APP] Saved full message to chat {chat_id} for user {user_id}.")
 
-# --- API Routes ---
 
 @app.get("/ticker-data", tags=["Application"])
 def get_ticker_data(user: dict = Depends(get_current_user)):
@@ -227,15 +231,6 @@ async def chat(payload: ChatHistoryRequest, user: dict = Depends(get_current_use
     
 
 
-def save_and_yield(generator, user_id, chat_id, role):
-    buffer = []
-    for chunk in generator:
-        buffer.append(chunk)
-        yield chunk
-    firebase_db.add_message_to_chat(user_id, chat_id, role, "".join(buffer))
-    print(f"[APP] Saved full message to chat {chat_id} for user {user_id}.")
-
-
 @app.post("/chats", tags=["Chat History"])
 async def create_chat_session(payload: NewChatRequest, user: dict = Depends(get_current_user)):
     """Creates a new chat session and returns the new chat ID."""
@@ -253,7 +248,6 @@ async def get_all_chats(user: dict = Depends(get_current_user)):
     user_id = user['uid']
     chat_list = firebase_db.get_chat_list(user_id)
     return chat_list
-
 
 @app.get("/chats/{chat_id}", tags=["Chat History"])
 async def get_chat_messages(chat_id:str, user:dict = Depends(get_current_user)):
@@ -274,7 +268,6 @@ async def delete_chat(chat_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Chat not found or could not be deleted.")
 
 
-
 @app.post("/rag/initiate", tags=["RAG"])
 async def rag_initiate(payload: RagInitiateRequest, user: dict = Depends(get_current_user)):
     company_input = payload.company_name
@@ -282,7 +275,6 @@ async def rag_initiate(payload: RagInitiateRequest, user: dict = Depends(get_cur
 
     print(f"[APP] RAG Initiate request for: {company_input}")
 
-    # --- FULL DYNAMIC LOGIC (COMMENTED OUT FOR TESTING) ---
     """
     if context.get('awaiting_clarification'):
         ticker = company_input

@@ -1,6 +1,3 @@
-# FILE: backend/rag_pipeline.py
-# PURPOSE: Contains all logic for the Retrieval-Augmented Generation pipeline.
-
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -64,7 +61,6 @@ def is_question_relevant(question):
         print(f"[RAG] Relevance check failed: {e}")
         return True 
 
-# --- FIX: Converted to an async generator ---
 async def query_rag_pipeline(company_name, question):
     """
     Queries the cached vector store for a given company to answer a question.
@@ -111,6 +107,5 @@ async def query_rag_pipeline(company_name, question):
         | StrOutputParser()
     )
     
-    # Use the asynchronous stream method
     async for chunk in rag_chain.astream(question):
         yield chunk

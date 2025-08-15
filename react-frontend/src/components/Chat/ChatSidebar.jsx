@@ -1,8 +1,5 @@
-// FILE: react-frontend/src/components/ChatSidebar.jsx
-
 import React from 'react';
 
-// The component now accepts an onDeleteChat prop
 function ChatSidebar({ sessions, activeChatId, onSelectChat, onNewChat, onDeleteChat }) {
     
     const handleDelete = (e, sessionId) => {

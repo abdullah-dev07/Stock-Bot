@@ -1,8 +1,5 @@
-// FILE: react-frontend/src/components/Chat/ChatInput.jsx
-
 import React, { useState } from 'react';
 
-// This component now receives the RAG mode state and functions as props
 function ChatInput({ onSendMessage, isRagMode, onStartRag, onExitRag }) {
     const [message, setMessage] = useState('');
 
@@ -17,7 +14,6 @@ function ChatInput({ onSendMessage, isRagMode, onStartRag, onExitRag }) {
     return (
         <div className="chat-input-area">
             <form onSubmit={handleSubmit}>
-                {/* --- THIS IS THE NEW BUTTON LOGIC --- */}
                 {/* It conditionally renders the correct button based on isRagMode */}
                 {isRagMode ? (
                     <button type="button" onClick={onExitRag} className="rag-action-btn exit">
