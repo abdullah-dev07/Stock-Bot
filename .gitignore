@@ -15,4 +15,4 @@
 
 .env
 
-./backend/firestore-key.json
+backend/firestore-key.json
