@@ -1,5 +1,5 @@
 import React from 'react';
-import { Newspaper } from 'lucide-react'; // Import the icon here
+import { Newspaper } from 'lucide-react'; 
 
 function NewsPanel({ news }) {
   const articlesToDisplay = news.slice(0, 10);

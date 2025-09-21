@@ -1,19 +1,19 @@
-#!/home/dev/Desktop/Work/project stockbot FastAPI/stockbot_env/bin/python3
-# -*- coding: utf-8 -*-
-# Copyright 2025 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import argparse
 import os
 try:
@@ -38,7 +38,7 @@ def partition(
     for i in iterator:
         results[int(predicate(i))].append(i)
 
-    # Returns trueList, falseList
+    
     return results[1], results[0]
 
 
@@ -83,14 +83,14 @@ class firestore_adminCallTransformer(cst.CSTTransformer):
             key = original.func.attr.value
             kword_params = self.METHOD_TO_PARAMS[key]
         except (AttributeError, KeyError):
-            # Either not a method from the API or too convoluted to be sure.
+            
             return updated
 
-        # If the existing code is valid, keyword args come after positional args.
-        # Therefore, all positional args must map to the first parameters.
+        
+        
         args, kwargs = partition(lambda a: not bool(a.keyword), updated.args)
         if any(k.keyword.value == "request" for k in kwargs):
-            # We've already fixed this file, don't fix it again.
+            
             return updated
 
         kwargs, ctrl_kwargs = partition(
@@ -108,9 +108,9 @@ class firestore_adminCallTransformer(cst.CSTTransformer):
                     cst.SimpleString("'{}'".format(name)),
 cst.Element(value=arg.value)
                 )
-                # Note: the args + kwargs looks silly, but keep in mind that
-                # the control parameters had to be stripped out, and that
-                # those could have been passed positionally or by keyword.
+                
+                
+                
                 for name, arg in zip(kword_params, args + kwargs)]),
             keyword=cst.Name("request")
         )
@@ -142,15 +142,15 @@ def fix_files(
         with open(fpath, 'r') as f:
             src = f.read()
 
-        # Parse the code and insert method call fixes.
+        
         tree = cst.parse_module(src)
         updated = tree.visit(transformer)
 
-        # Create the path and directory structure for the new file.
+        
         updated_path = out_dir.joinpath(fpath.relative_to(in_dir))
         updated_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Generate the updated source file at the corresponding path.
+        
         with open(updated_path, 'w') as f:
             f.write(updated.code)
 

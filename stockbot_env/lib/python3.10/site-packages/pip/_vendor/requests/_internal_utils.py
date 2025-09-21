@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 
 """
 requests._internal_utils

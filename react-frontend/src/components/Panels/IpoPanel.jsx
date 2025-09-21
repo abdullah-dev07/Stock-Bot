@@ -1,5 +1,5 @@
 import React from 'react';
-import { Rocket } from 'lucide-react'; // Import the icon here
+import { Rocket } from 'lucide-react'; 
 
 function IpoPanel({ ipos }) {
   return (

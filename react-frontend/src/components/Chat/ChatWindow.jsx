@@ -1,4 +1,4 @@
-// FILE: react-frontend/src/components/Chat/ChatWindow.jsx
+
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -6,10 +6,10 @@ import Message from './Message';
 import ChatInput from './ChatInput';
 import ChatSidebar from './ChatSidebar';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http:
 
 function ChatWindow() {
-    // --- STATE MANAGEMENT ---
+    
     const [chatSessions, setChatSessions] = useState([]);
     const [activeChatId, setActiveChatId] = useState(null);
     const [history, setHistory] = useState([]);
@@ -20,7 +20,7 @@ function ChatWindow() {
     const chatBoxRef = useRef(null);
     const navigate = useNavigate();
 
-    // --- AUTH & USER FETCHING ---
+    
     const handleLogout = useCallback(async () => {
         localStorage.removeItem('stockbot_token');
         navigate('/login');
@@ -42,7 +42,7 @@ function ChatWindow() {
         fetchUser();
     }, [navigate, handleLogout]);
 
-    // --- CHAT HISTORY MANAGEMENT ---
+    
     const fetchChatSessions = useCallback(async () => {
         const token = localStorage.getItem('stockbot_token');
         const response = await fetch(`${API_BASE_URL}/chats`, {
@@ -57,7 +57,7 @@ function ChatWindow() {
                 handleNewChat();
             }
         }
-    }, []); // <-- Dependency array is intentionally empty to prevent re-fetching
+    }, []); 
 
     useEffect(() => {
         if (user) {
@@ -144,7 +144,7 @@ function ChatWindow() {
         }]);
     };
 
-    // --- CORE MESSAGE SENDING LOGIC ---
+    
     const handleSendMessage = async (messageOrPayload) => {
         const isPayloadObject = typeof messageOrPayload === 'object' && messageOrPayload !== null;
         const payload = isPayloadObject ? messageOrPayload : { message: messageOrPayload };
@@ -176,13 +176,13 @@ function ChatWindow() {
             const data = await res.json();
             currentChatId = data.chat_id;
 
-            // ✅ ensure we don't lose the first message
+            
             setActiveChatId(currentChatId);
             setChatSessions(prev => [...prev, { id: currentChatId }]);
 
-            // Make sure first message stays visible
+            
             setHistory(prev => {
-                // if message already exists, keep it
+                
                 if (prev.some(msg => msg.text === payload.message && msg.role === 'user')) return prev;
                 return [...prev, { role: 'user', text: payload.message, id: Date.now() }];
             });

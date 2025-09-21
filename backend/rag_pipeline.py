@@ -8,10 +8,10 @@ from langchain_core.output_parsers import StrOutputParser
 from google import genai
 import os
 
-# This dictionary will act as a simple, temporary cache for our vector stores.
+
 vector_store_cache = {}
 
-# --- FIX: Converted to an async function ---
+
 async def create_vector_store_from_text(document_text, company_name):
     """
     Takes raw text, chunks it, creates embeddings, and stores them in an in-memory vector store.
@@ -26,7 +26,7 @@ async def create_vector_store_from_text(document_text, company_name):
         task_type="SEMANTIC_SIMILARITY"
     )
     
-    # Use the asynchronous method to create the vector store
+    
     vector_store = await FAISS.afrom_texts(chunks, embedding=embeddings)
     
     vector_store_cache[company_name] = vector_store
@@ -71,7 +71,7 @@ async def query_rag_pipeline(company_name, question):
         client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
         model = "gemini-1.5-flash"
         prompt = f"Give an appropriate response based on the user's prompt: {question}"
-        response = client.models.generate_content(contents=prompt, model=model) # Use non-streaming for short response
+        response = client.models.generate_content(contents=prompt, model=model) 
         yield response.text
         return         
 

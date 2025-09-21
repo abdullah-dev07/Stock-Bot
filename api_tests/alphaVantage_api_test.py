@@ -2,7 +2,7 @@ import requests
 import json
 
 
-# --- Configuration ---
+
 API_KEY = "KLCQOV1OMS6GTGZT"
 BASE_URL = "https://www.alphavantage.co/query"
 
@@ -30,7 +30,7 @@ def test_symbol_search(api_key, keywords="apple"):
         print("Full API Response:")
         pretty_print_json(data)
 
-        # --- Ticker Extraction Logic ---
+        
         if "bestMatches" in data and data["bestMatches"]:
             best_match = data["bestMatches"][0]
             ticker = best_match.get("1. symbol")
@@ -121,11 +121,11 @@ if __name__ == "__main__":
     if API_KEY == "YOUR_API_KEY":
         print("="*50)
         print("ERROR: Please replace 'YOUR_API_KEY' with your actual key.")
-        print("You can get a free key from: https://www.alphavantage.co/support/#api-key")
+        print("You can get a free key from: https://www.alphavantage.co/support/
         print("="*50)
     else:
-        # Run all the test functions
+        
         test_symbol_search(API_KEY)
-        # test_global_quote(API_KEY)
-        # test_company_overview(API_KEY)
-        # test_news_sentiments(API_KEY)
+        
+        
+        

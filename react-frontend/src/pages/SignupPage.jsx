@@ -13,15 +13,15 @@ function SignupPage() {
         setError('');
         setSuccess('');
 
-        // The backend signup endpoint expects form data, not JSON
+        
         const formData = new FormData();
         formData.append('email', email);
         formData.append('password', password);
 
         try {
-            const response = await fetch('http://localhost:8000/auth/signup', {
+            const response = await fetch('http:
                 method: 'POST',
-                body: formData, // Send as form data
+                body: formData, 
             });
 
             const responseData = await response.json();
@@ -30,7 +30,7 @@ function SignupPage() {
                 setSuccess('Signup successful! Redirecting to login...');
                 setTimeout(() => {
                     navigate('/login');
-                }, 2000); // Wait 2 seconds before redirecting
+                }, 2000); 
             } else {
                 setError(responseData.detail || 'An error occurred during signup.');
             }

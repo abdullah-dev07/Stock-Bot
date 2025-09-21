@@ -11,7 +11,7 @@ def summarize_conversation(history):
     client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
     model = 'gemini-1.5-flash'
     
-    # Convert history to a simple string format for the prompt
+    
     history_text = "\n".join([f"{msg['role']}: {msg['text']}" for msg in history])
     
     prompt = f"""
@@ -27,7 +27,7 @@ def summarize_conversation(history):
         return response.text
     except Exception as e:
         print(f"[GEMINI] Error during summarization: {e}")
-        return "" # Return empty string on failure
+        return "" 
 
 def get_intent(user_prompt, history=[]):
     """
@@ -35,7 +35,7 @@ def get_intent(user_prompt, history=[]):
     This now includes more nuanced intents for the hybrid model.
     """
     print(f"\n[GEMINI] Calling get_intent for prompt: '{user_prompt}'")
-    model = 'gemini-2.5-flash' # Using a fast model for classification
+    model = 'gemini-2.5-flash' 
     
     client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
@@ -159,10 +159,10 @@ def generate_grounded_response(prompt, history=[]):
         recent_history = history
     
 
-    # Construct the full conversation history for the model
+    
     model_contents = []
     if context_summary:
-        # Add the summary as the first piece of context
+        
         model_contents.append(types.Content(role='user', parts=[types.Part.from_text(text=f"SUMMARY OF EARLIER CONVERSATION: {context_summary}")]))
         model_contents.append(types.Content(role='model', parts=[types.Part.from_text(text="Okay, I have the summary. Let's continue.")]))
 
@@ -194,7 +194,7 @@ def generate_grounded_response(prompt, history=[]):
             if chunk.text:
                 yield chunk.text + "\n"
     except Exception as e:
-        # Log the actual error to your server console for debugging
+        
         print(f"An error occurred in the Gemini stream: {type(e).__name__} - {e}")
         
         yield "Sorry, an error occurred while generating the response. The request may have been blocked due to safety settings."

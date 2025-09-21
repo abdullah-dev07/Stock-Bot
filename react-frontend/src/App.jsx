@@ -5,8 +5,8 @@ import SignupPage from './pages/SignupPage';
 import ChatPage from './pages/ChatPage';
 import './App.css';
 
-// This component checks if a user is authenticated.
-// If they are, it shows the protected page. If not, it redirects to login.
+
+
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('stockbot_token');
   if (!token) {
@@ -29,7 +29,7 @@ function App() {
             </ProtectedRoute>
           } 
         />
-        {/* Add a catch-all to redirect to the main page */}
+        {}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

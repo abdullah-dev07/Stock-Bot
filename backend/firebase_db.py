@@ -1,5 +1,5 @@
-# FILE: backend/firebase_db.py
-# PURPOSE: Handles all interactions with the Firestore database for chat history.
+
+
 
 from .firebase_init import db
 from datetime import datetime, timezone
@@ -23,7 +23,7 @@ def get_chat_history(user_id, chat_id):
     try:
         messages_ref = db.collection('users').document(user_id).collection('chats').document(chat_id).collection('messages').order_by('timestamp')
         messages = messages_ref.stream()
-        # Include the document ID in the message object
+        
         history = [{"id": msg.id, **msg.to_dict()} for msg in messages]
         return history
     except Exception as e:
@@ -80,7 +80,7 @@ def _get_summary_title(message_text):
     uses a gemini model to generate a concise title from the user's first message.
     """    
 
-    print(f"[DB] Generating summary title for message: {message_text[:50]}...")  # Log first 50 chars for brevity
+    print(f"[DB] Generating summary title for message: {message_text[:50]}...")  
     
     try:
         client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))

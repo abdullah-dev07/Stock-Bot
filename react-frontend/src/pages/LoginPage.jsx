@@ -11,14 +11,14 @@ function LoginPage() {
         e.preventDefault();
         setError('');
 
-        // This correctly prepares the data for the backend's OAuth2PasswordRequestForm
+        
         const formData = new URLSearchParams();
         formData.append('username', email);
         formData.append('password', password);
 
         try {
-            // The URL is correct, pointing directly to the backend
-            const response = await fetch('http://localhost:8000/auth/token', {
+            
+            const response = await fetch('http:
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: formData,
@@ -27,7 +27,7 @@ function LoginPage() {
             if (response.ok) {
                 const data = await response.json();
                 localStorage.setItem('stockbot_token', data.access_token);
-                navigate('/'); // Navigate to the main chat page on success
+                navigate('/'); 
             } else {
                 const errorData = await response.json();
                 setError(errorData.detail || 'Invalid email or password.');
@@ -45,7 +45,7 @@ function LoginPage() {
                     {error && <div className="flash error">{error}</div>}
                     <div className="form-group">
                         <label htmlFor="email">Email</label>
-                        {/* It's good practice to add the name attribute */}
+                        {}
                         <input
                             type="email"
                             name="username"

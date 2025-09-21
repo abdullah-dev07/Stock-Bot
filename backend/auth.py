@@ -1,5 +1,5 @@
-# FILE: backend/auth.py
-# PURPOSE: Handles user signup and login API endpoints for a React frontend.
+
+
 
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -21,16 +21,16 @@ auth_router = APIRouter(
     tags=["Authentication"]
 )
 
-# --- JWT Configuration ---
+
 SECRET_KEY = os.environ.get("SECRET_KEY", "a-secure-default-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 300
 
-# --- Firebase REST API Configuration ---
+
 FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY")
 REST_API_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
 
-# --- Dependency Setup ---
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 def create_access_token(data: dict):

@@ -1,5 +1,5 @@
-# FILE: backend/main.py
-# PURPOSE: Main FastAPI application file, now acting as a pure API server.
+
+
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
@@ -26,15 +26,15 @@ load_dotenv()
 
 app = FastAPI()
 
-# --- CORS Middleware ---
-# This allows the React app and a potential static build test to make requests to this backend directly.
+
+
 origins = [
-    "http://localhost:5173",  # Standard React Dev Server
-    "http://127.0.0.1:3000",  # Accessing React Dev Server via IP
-    "http://localhost:8081",  # For testing a production build locally
+    "http://localhost:5173",  
+    "http://127.0.0.1:3000",  
+    "http://localhost:8081",  
     "http://127.0.0.1:8081", 
     "http://0.0.0.0:8000",
-    "http://localhost:5173", # Add Vite's default port
+    "http://localhost:5173", 
 ]
 
 
@@ -57,7 +57,7 @@ CACHE = {
 }
 CACHE_DURATION_MINUTES = 600
 
-# --- Pydantic Models ---
+
 class ChatRequest(BaseModel):
     message: str
     context: dict = {}
@@ -99,8 +99,8 @@ def proceed_with_intent(intent: str, ticker: str, entity: str, user_id: str, cha
         
         return StreamingResponse(save_and_yield(
             gemini_client.generate_response_from_quote(quote_data, entity),
-            user_id=user_id,  # No user context needed for this response
-            chat_id=chat_id,  # No chat context needed for this response
+            user_id=user_id,  
+            chat_id=chat_id,  
             role="assistant"
         ), media_type="text/plain")
     
@@ -293,11 +293,11 @@ async def rag_initiate(payload: RagInitiateRequest, user: dict = Depends(get_cur
         ticker = matches[0]['symbol']
         actual_name = matches[0]['name']
     """
-    # --- HARDCODED FOR TESTING ---
+    
     ticker = "AMZN"
     actual_name = "Amazon"
     print(f"[APP] Using hardcoded ticker: {ticker} and name: {actual_name}")
-    # --- END OF HARDCODED SECTION ---
+    
 
     data_dir = os.path.join(os.path.dirname(__file__), 'data')
     if not os.path.exists(data_dir):

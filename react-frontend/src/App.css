@@ -1,4 +1,4 @@
-/* FILE: react-frontend/src/App.css */
+
 
 :root {
     --background-color: #121212;
@@ -37,14 +37,14 @@ body {
 .full-page-chat-wrapper {
     display: flex;
     justify-content: center;
-    align-items: stretch; /* This is the key change to make children equal height */
+    align-items: stretch; 
     gap: 2rem;
     width: 100%;
     max-width: 1920px;
-    height: calc(100vh - 95px); /* Adjust height to account for ticker and padding */
+    height: calc(100vh - 95px); 
     padding: 0rem 2rem;
 }
-/* Chat Sidebar Styles */
+
 .chat-sidebar {
     width: 260px;
     height: 90vh;
@@ -105,7 +105,7 @@ body {
 
 
 
-/* Add to your App.css file */
+
 
 .chat-session-item {
     display: flex;
@@ -132,26 +132,26 @@ body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    opacity: 0; /* Hidden by default */
+    opacity: 0; 
     transition: opacity 0.2s, color 0.2s;
 }
 
 .chat-session-item:hover .delete-chat-btn {
-    opacity: 1; /* Show on hover */
+    opacity: 1; 
 }
 
 .delete-chat-btn:hover {
-    color: #d62518; /* Red on hover */
+    color: #d62518; 
     background-color: rgba(244, 67, 54, 0.1);
 }
 
 
-/* Adjust the main chat container to fit in the new layout */
+
 .full-page-chat-wrapper .chat-container {
-    flex-grow: 1; /* Allow chat window to take remaining space */
+    flex-grow: 1; 
 }
 
-/* --- Keyframes for animations --- */
+
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
@@ -167,7 +167,7 @@ body {
     40% { transform: scale(1.0); }
 }
 
-/* --- Ticker Slider Styles --- */
+
 .ticker-slider-container {
     width: 100%;
     background-color: #000;
@@ -198,7 +198,7 @@ body {
 .ticker-item .change.positive { color: var(--positive-change); }
 .ticker-item .change.negative { color: var(--negative-change); }
 
-/* --- Main Layout Wrapper --- */
+
 .main-content-wrapper {
     display: flex;
     justify-content: center;
@@ -210,7 +210,7 @@ body {
     padding: 70px 2rem 2rem 2rem;
 }
 
-/* Left panel (market movers) */
+
 .main-content-wrapper > .side-panel:first-child {
     width: 300px;
     height: 90vh;
@@ -218,7 +218,7 @@ body {
     flex-shrink: 0;
 }
 
-/* Chat container (center) */
+
 .chat-container {
     width: 700px;
     height: 90vh;
@@ -232,7 +232,7 @@ body {
     flex-shrink: 0;
 }
 
-/* Right column (news + IPO) */
+
 .right-column {
     display: flex;
     flex-direction: column;
@@ -248,7 +248,7 @@ body {
     width: 100%;
 }
 
-/* --- Unified Side Panel Styles --- */
+
 .side-panel {
     background-color: var(--surface-color);
     border-radius: 16px;
@@ -271,7 +271,7 @@ body {
     z-index: 10;
 }
 
-/* --- Message Styles --- */
+
 .message {
     display: flex;
     max-width: 80%;
@@ -298,7 +298,7 @@ body {
 .message-content p:last-child { margin-bottom: 0; }
 .message-content ul, .message-content ol { margin-left: 1.2em; }
 
-/* --- Market Movers Panel Styles --- */
+
 .movers-list { display: flex; flex-direction: column; gap: 1rem; }
 .mover-item { display: flex; flex-direction: column; padding: 0.75rem; background-color: #2a2a2a; border-radius: 8px; border-left: 4px solid transparent; animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
 .mover-item.gainer { border-color: var(--positive-change); }
@@ -308,7 +308,7 @@ body {
 .mover-item .change.positive { color: var(--positive-change); }
 .mover-item .change.negative { color: var(--negative-change); }
 
-/* --- News & IPO Panel Styles --- */
+
 .news-list, .ipo-list { display: flex; flex-direction: column; gap: 1rem; }
 .news-item, .ipo-item { background-color: #2a2a2a; border-radius: 8px; padding: 1rem; animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
 .news-item { text-decoration: none; color: var(--text-color); display: block; border-left: 4px solid var(--primary-color); transition: background-color 0.3s; }
@@ -321,7 +321,7 @@ body {
 .ipo-item .date { font-size: 0.8rem; color: #b0b0b0; font-weight: normal; }
 .ipo-item .name { font-size: 0.9rem; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* --- Chat Page Styles --- */
+
 .chat-header { background-color: #242424; padding: 1rem 1.5rem; border-bottom: 1px solid #333; }
 .chat-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary-color); margin-bottom: 0.25rem; }
 .header-controls { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: #a0a0a0; }
@@ -336,12 +336,12 @@ body {
 .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
 .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
 
-/* --- Chat Input Area (UPDATED) --- */
+
 .chat-input-area { padding: 1rem 1.5rem; border-top: 1px solid #333; background-color: #242424; }
 .chat-input-area form { display: flex; gap: 0.75rem; align-items: center; }
 
 .chat-input-area input {
-    flex-grow: 1; /* This makes the input take up the available space */
+    flex-grow: 1; 
     padding: 0.8rem 1rem;
     border: 1px solid #555;
     border-radius: 8px;
@@ -350,7 +350,7 @@ body {
     font-size: 1rem;
     outline: none;
     transition: border-color 0.3s;
-    height: 48px; /* Match button height */
+    height: 48px; 
 }
 .chat-input-area input:focus { border-color: var(--primary-color); }
 
@@ -365,24 +365,24 @@ body {
     align-items: center;
     cursor: pointer;
     transition: background-color 0.3s;
-    flex-shrink: 0; /* Prevent send button from shrinking */
+    flex-shrink: 0; 
 }
 .chat-input-area button:hover { background-color: #3e8e41; }
 
-/* --- Improved RAG Button Styles (NEW) --- */
+
 .rag-action-btn {
-    padding: 0 1.25rem; /* Added more horizontal padding */
+    padding: 0 1.25rem; 
     height: 48px;
-    min-width: 140px; /* Gave the button a minimum width to prevent squishing */
+    min-width: 140px; 
     border: 1px solid var(--primary-color);
     background-color: transparent;
     color: white;
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
-    flex-shrink: 0; /* Prevent this button from shrinking */
+    flex-shrink: 0; 
     transition: all 0.3s ease;
-    text-align: center; /* Ensure text is centered */
+    text-align: center; 
 }
 
 
@@ -402,7 +402,7 @@ body {
     color: white;
 }
 
-/* --- Auth Page Styles --- */
+
 .auth-container { width: 100%; max-width: 400px; }
 .auth-form-container { background: var(--surface-color); padding: 2.5rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
 .auth-form-container h1 { text-align: center; margin-bottom: 2rem; color: var(--primary-color); }
@@ -414,13 +414,13 @@ body {
 .auth-switch { text-align: center; margin-top: 1.5rem; color: #a0a0a0; }
 .auth-switch a { color: var(--primary-color); text-decoration: none; font-weight: 600; }
 
-/* --- Flash Message Styles --- */
+
 .flash-messages { position: absolute; top: 20px; width: 100%; display: flex; justify-content: center; z-index: 1000; }
 .flash { padding: 1rem 1.5rem; border-radius: 8px; color: #fff; min-width: 300px; text-align: center; margin: 0 1rem; opacity: 1; transition: opacity 0.5s ease-out; }
 .flash.success { background-color: #2e7d32; }
 .flash.error { background-color: #c62828; }
 
-/* --- Responsive Adjustments --- */
+
 @media (max-width: 1600px) {
     .chat-container { width: 500px; }
     .main-content-wrapper > .side-panel:first-child, .right-column { width: 280px; }

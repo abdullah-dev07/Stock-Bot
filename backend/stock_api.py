@@ -110,10 +110,10 @@ def search_ticker_symbols(keywords):
                 {"symbol": match.get("1. symbol"), "name": match.get("2. name")} 
                 for match in data["bestMatches"][:5]
             ]
-        return [] # Successful search, but no matches found
+        return [] 
     except requests.exceptions.RequestException as e:
         print(f"[STOCK API] Network/HTTP Error fetching ticker for {keywords}: {e}")
-        return None # Indicates a connection failure
+        return None 
 
 
 
@@ -130,14 +130,14 @@ def get_ipo_calendar():
         response = requests.get(BASE_URL, params=params)
         response.raise_for_status()
         
-        # This endpoint returns CSV data, so we need to parse it
+        
         ipo_data = []
         csv_file = io.StringIO(response.text)
         reader = csv.DictReader(csv_file)
         for row in reader:
             ipo_data.append(row)
             
-        return ipo_data[:10] # Return the top 10 upcoming IPOs
+        return ipo_data[:10] 
         
     except requests.exceptions.RequestException as e:
         print(f"[STOCK API] Network/HTTP Error fetching IPO calendar: {e}")
@@ -260,8 +260,8 @@ def get_market_news():
     print(f"\n[STOCK API] Calling get_market_news")
     params = {
         "function": "NEWS_SENTIMENT",
-        "topics": "financial_markets", # Fetch general market news
-        "limit": "10", # Get the top 10 articles
+        "topics": "financial_markets", 
+        "limit": "10", 
         "apikey": API_KEY,
     }
     try:
@@ -291,7 +291,7 @@ def get_10k_filing_text(ticker):
     print(f"\n[STOCK API] Using sec-api.io to find latest 10-K for ticker: '{ticker}'")
     
     try:
-        # Step 1: Use the Query API to find the latest 10-K filing
+        
         queryApi = QueryApi(api_key=SEC_API_KEY)
         query = {
           "query": f'ticker:"{ticker}" AND formType:"10-K"',
@@ -313,16 +313,16 @@ def get_10k_filing_text(ticker):
         download_url = f"https://archive.sec-api.io/{file_path}?token={SEC_API_KEY}"
         print(f"[STOCK API] Constructed Download API URL: {download_url}")
         
-        # Step 3: Download the content from the Download API
+        
         headers = {'User-Agent': 'StockBot/1.0 abdullah.muhammad@devsinc.com'}
         response = requests.get(download_url, headers=headers, timeout=60) 
         response.raise_for_status()
         
-        # --- FIX: More robust HTML parsing logic ---
+        
         html_content = response.text
         soup = BeautifulSoup(html_content, 'lxml')
         
-        # First, find all tables, convert them to Markdown, and replace them with a placeholder
+        
         markdown_tables = []
         for table in soup.find_all('table'):
             table_str = ""
@@ -334,10 +334,10 @@ def get_10k_filing_text(ticker):
             markdown_tables.append(table_str)
             table.replace_with(placeholder)
 
-        # Now, get all the remaining text from the document
+        
         clean_text = soup.get_text(separator='\n', strip=True)
         
-        # Finally, substitute the placeholders back with the formatted Markdown tables
+        
         for i, table_md in enumerate(markdown_tables):
             clean_text = clean_text.replace(f"---TABLE_PLACEHOLDER_{i}---", f"\n\n{table_md}\n\n")
         
