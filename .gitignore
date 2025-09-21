@@ -12,4 +12,7 @@
 # Log files
 *.log
 
+
 .env
+
+./backend/firestore-key.json
