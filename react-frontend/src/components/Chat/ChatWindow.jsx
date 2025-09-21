@@ -105,7 +105,7 @@ function ChatWindow() {
             if (response.ok) {
                 const currentSessions = [...chatSessions];
                 const deletedIndex = currentSessions.findIndex(s => s.id === chatIdToDelete);
-                
+
                 const updatedSessions = currentSessions.filter(s => s.id !== chatIdToDelete);
                 setChatSessions(updatedSessions);
 
@@ -148,7 +148,7 @@ function ChatWindow() {
     const handleSendMessage = async (messageOrPayload) => {
         const isPayloadObject = typeof messageOrPayload === 'object' && messageOrPayload !== null;
         const payload = isPayloadObject ? messageOrPayload : { message: messageOrPayload };
-        
+
         if (!payload.context) {
             const newUserMessage = { role: 'user', text: payload.message, id: Date.now() };
             setHistory(prev => [...prev, newUserMessage]);
@@ -175,9 +175,19 @@ function ChatWindow() {
             });
             const data = await res.json();
             currentChatId = data.chat_id;
+
+            // ✅ ensure we don't lose the first message
             setActiveChatId(currentChatId);
-            fetchChatSessions();
+            setChatSessions(prev => [...prev, { id: currentChatId }]);
+
+            // Make sure first message stays visible
+            setHistory(prev => {
+                // if message already exists, keep it
+                if (prev.some(msg => msg.text === payload.message && msg.role === 'user')) return prev;
+                return [...prev, { role: 'user', text: payload.message, id: Date.now() }];
+            });
         }
+
 
         const fullPayload = { ...payload, chat_id: currentChatId };
 
@@ -217,7 +227,7 @@ function ChatWindow() {
             setIsLoading(false);
         }
     };
-    
+
     const handleRagChat = async (payload) => {
         setIsLoading(true);
         try {
@@ -259,8 +269,8 @@ function ChatWindow() {
                 setHistory(prev => [...prev, { role: 'model', text: data.message, id: Date.now() }]);
             }
         } else {
-             setHistory(prev => [...prev, { role: 'model', text: data.message || "An error occurred.", id: Date.now() }]);
-             exitRagMode(); 
+            setHistory(prev => [...prev, { role: 'model', text: data.message || "An error occurred.", id: Date.now() }]);
+            exitRagMode();
         }
     };
 
@@ -289,12 +299,12 @@ function ChatWindow() {
 
     return (
         <div className="full-page-chat-wrapper">
-            <ChatSidebar 
-                sessions={chatSessions} 
+            <ChatSidebar
+                sessions={chatSessions}
                 activeChatId={activeChatId}
-                onSelectChat={selectChat} 
+                onSelectChat={selectChat}
                 onNewChat={handleNewChat}
-                onDeleteChat={handleDeleteChat} 
+                onDeleteChat={handleDeleteChat}
             />
             <div className="chat-container">
                 <header className="chat-header">
@@ -323,8 +333,8 @@ function ChatWindow() {
                         </div>
                     )}
                 </div>
-                <ChatInput 
-                    onSendMessage={handleSendMessage} 
+                <ChatInput
+                    onSendMessage={handleSendMessage}
                     isRagMode={isRagMode}
                     onStartRag={startRagAnalysis}
                     onExitRag={exitRagMode}

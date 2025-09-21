@@ -11,14 +11,11 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
-# --- Load environment variables at the top of this file ---
 load_dotenv()
 
 from . import firebase_init
 
-# --- Setup ---
-# BEST PRACTICE: Add a prefix and common tags to the router for organization.
-# All routes in this file will now start with /auth.
+
 auth_router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
@@ -34,7 +31,6 @@ FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY")
 REST_API_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
 
 # --- Dependency Setup ---
-# The tokenUrl must now include the /auth prefix.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 def create_access_token(data: dict):
@@ -74,7 +70,6 @@ async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)
         raise credentials_exception
     
     
-# --- API Routes ---
 
 @auth_router.post("/signup")
 async def signup(request: Request):
@@ -135,6 +130,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"
         )
+    
 
 @auth_router.post("/logout")
 async def logout():

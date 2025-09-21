@@ -37,6 +37,8 @@ origins = [
     "http://localhost:5173", # Add Vite's default port
 ]
 
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

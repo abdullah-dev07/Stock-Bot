@@ -41,12 +41,14 @@ body {
     gap: 2rem;
     width: 100%;
     max-width: 1920px;
-    height: calc(100vh - 90px); /* Adjust height to account for ticker and padding */
-    padding: 1rem 2rem;
+    height: calc(100vh - 95px); /* Adjust height to account for ticker and padding */
+    padding: 0rem 2rem;
 }
 /* Chat Sidebar Styles */
 .chat-sidebar {
     width: 260px;
+    height: 90vh;
+    max-height: 850px;
     background-color: var(--surface-color);
     border-radius: 16px;
     padding: 1rem;
@@ -54,7 +56,6 @@ body {
     flex-direction: column;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     flex-shrink: 0;
-    /* Removed fixed height to allow stretching */
 }
 
 .new-chat-btn {
