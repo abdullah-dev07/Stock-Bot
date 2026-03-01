@@ -6,7 +6,7 @@ import Message from './Message';
 import ChatInput from './ChatInput';
 import ChatSidebar from './ChatSidebar';
 
-const API_BASE_URL = 'http:
+import API_BASE_URL from '../../config';
 
 function ChatWindow() {
     

@@ -9,7 +9,7 @@ import IpoPanel from '../components/Panels/IpoPanel';
 import ChatWindow from '../components/Chat/ChatWindow';
 
 
-const API_BASE_URL = 'http:
+import API_BASE_URL from '../config';
 
 function ChatPage() {
   const [tickerData, setTickerData] = useState([]);

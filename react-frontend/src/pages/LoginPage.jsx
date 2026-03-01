@@ -18,7 +18,8 @@ function LoginPage() {
 
         try {
             
-            const response = await fetch('http:
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+            const response = await fetch(`${API_BASE_URL}/auth/token`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: formData,

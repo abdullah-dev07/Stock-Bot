@@ -19,8 +19,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "dev:fullstack": "concurrently \"npm run dev\" \"bash -c 'cd .. && source stockbot_env/bin/activate && uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000'\"",
-    "start:prod": "npm run build && bash -c 'cd .. && source stockbot_env/bin/activate && uvicorn backend.main:app --host 0.0.0.0 --port 8000'"},
+    "dev:fullstack": "concurrently \"npm run dev\" \"bash -c 'cd .. && source stockbot_env/bin/activate && uvicorn backend.main:app --reload --host 0.0.0.0 --port 8001'\"",
+    "start:prod": "npm run build && bash -c 'cd .. && source stockbot_env/bin/activate && uvicorn backend.main:app --host 0.0.0.0 --port 8001'"},
     "eslintConfig": {
     "extends": [
       "react-app",
