@@ -3,7 +3,7 @@
 
 from .firebase_init import db
 from datetime import datetime, timezone
-from google import genai
+import google.generativeai as genai
 import os
 
 
@@ -83,8 +83,12 @@ def _get_summary_title(message_text):
     print(f"[DB] Generating summary title for message: {message_text[:50]}...")  
     
     try:
-        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        model = "gemini-2.5-flash"
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            print("[DB] WARNING: GEMINI_API_KEY not found in environment variables!")
+            return message_text[:35] + "..." if len(message_text) > 35 else message_text
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-pro")
 
         prompt = f"""
         Generate a concise title, not more than 5 words, for the following message:
@@ -96,7 +100,7 @@ def _get_summary_title(message_text):
         Title:
         """
 
-        response = client.models.generate_content(contents=prompt, model=model)
+        response = model.generate_content(prompt)
         title = response.text.strip().replace("*","").replace("\"", "")
         return title if title else "Untitled"
 

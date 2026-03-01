@@ -12,17 +12,19 @@ import json
 from datetime import datetime, timezone, timedelta
 from starlette.concurrency import iterate_in_threadpool
 import os
+import asyncio
+
+# Load environment variables FIRST before importing other modules
+# Load from backend directory
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
+
 from . import firebase_init
 from . import rag_pipeline
 from . import gemini_client
 from . import stock_api
 from . import firebase_db
 from .auth import auth_router, get_current_user
-import asyncio
-
-
-
-load_dotenv()
 
 app = FastAPI()
 
@@ -90,21 +92,17 @@ def is_cache_stale(cache_key: str):
         return True
     return datetime.now(timezone.utc) - timestamp > timedelta(minutes=CACHE_DURATION_MINUTES)
 
-def proceed_with_intent(intent: str, ticker: str, entity: str, user_id: str, chat_id: str):
-    """Handles non-streaming intents that result in a stream."""
+def proceed_with_intent(intent: str, ticker: str, entity: str):
+    """Handles non-streaming intents that result in a generator."""
     if intent == "get_specific_data":
         quote_data = stock_api.get_stock_quote(ticker)
         if not quote_data:
-            return StreamingResponse(iter([f"Sorry, I couldn't retrieve valid price data for {ticker}."]), media_type="text/plain")
+            return iter([f"Sorry, I couldn't retrieve valid price data for {ticker}."])
         
-        return StreamingResponse(save_and_yield(
-            gemini_client.generate_response_from_quote(quote_data, entity),
-            user_id=user_id,  
-            chat_id=chat_id,  
-            role="assistant"
-        ), media_type="text/plain")
+        # generate_response_from_quote takes (company, quote_data) as parameters
+        return gemini_client.generate_response_from_quote(entity, quote_data)
     
-    return StreamingResponse(iter(["I'm not sure how to proceed with that request."]), media_type="text/plain")
+    return iter(["I'm not sure how to proceed with that request."])
 
 def save_and_yield(generator, user_id, chat_id, role):
     buffer = []
@@ -335,16 +333,27 @@ async def rag_query(payload: RagQueryRequest, user: dict = Depends(get_current_u
 
 
 build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../react-frontend/dist"))
+assets_dir = os.path.join(build_dir, "assets")
 
-app.mount("/assets", StaticFiles(directory=os.path.join(build_dir, "assets")), name="assets")
+# Only mount static files if the build directory exists (production mode)
+if os.path.exists(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 @app.get("/{full_path:path}")
 async def serve_react_app(full_path:str):
+    # Only serve React app in production (when dist folder exists)
+    # In development, Vite serves the frontend on port 5173
     index_path = os.path.join(build_dir, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
     
-    return JSONResponse(status_code=500, content={"message":"Frontend not found"})
+    # In development mode, return a helpful message
+    return JSONResponse(
+        status_code=404, 
+        content={
+            "message": "Frontend not found. In development, frontend is served by Vite on http://localhost:5173"
+        }
+    )
 
     
 

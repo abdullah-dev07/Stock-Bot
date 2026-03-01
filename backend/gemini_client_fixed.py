@@ -2,22 +2,14 @@ import os
 import json
 import google.generativeai as genai
 
-# Lazy initialization - configure API key when first needed
-def _ensure_configured():
-    """Ensure genai is configured with API key."""
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("[GEMINI] ERROR: GEMINI_API_KEY not found in environment variables!")
-        raise ValueError("GEMINI_API_KEY environment variable is required. Please set it in backend/.env file.")
-    # Configure - safe to call multiple times
-    genai.configure(api_key=api_key)
+# Configure API key once at module level
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 
 def summarize_conversation(history):
     """Uses a fast model to summarize the older part of a conversation."""
     print("[GEMINI] Summarizing older conversation history...")
-    _ensure_configured()
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     history_text = "\n".join([f"{msg['role']}: {msg['text']}" for msg in history])
     
@@ -41,8 +33,7 @@ def get_intent(user_prompt, history=[]):
     Uses Gemini to determine the user's intent and extract the main entity.
     """
     print(f"\n[GEMINI] Calling get_intent for prompt: '{user_prompt}'")
-    _ensure_configured()
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     context_summary = ""
     if len(history) > 4:
@@ -91,8 +82,7 @@ def generate_prediction_response(prediction_data, user_prompt):
     Generates a stock prediction analysis based on provided data.
     """
     print(f"\n[GEMINI] Calling generate_prediction_response for: '{prediction_data.get('company_name')}'")
-    _ensure_configured()
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     prompt = f"""
         You are an expert financial analyst. Your task is to provide a stock price prediction based ONLY on the recently fetched technical and fundamental data.
@@ -126,8 +116,7 @@ def generate_grounded_response(prompt, history=[]):
     Generates a response for complex, qualitative, or advice-seeking questions.
     """
     print(f"\n[GEMINI] Calling generate_grounded_response for prompt: '{prompt}'")
-    _ensure_configured()
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     context_summary = ""
     if len(history) > 4:
@@ -162,8 +151,7 @@ def generate_grounded_response(prompt, history=[]):
 def generate_response_from_quote(company, quote_data):
     """Generates a human-readable response from structured stock quote data."""
     print(f"\n[GEMINI] Calling generate_response_from_quote for company: '{company}'")
-    _ensure_configured()
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     prompt = f"""
     A user asked for the stock price of {company}.
@@ -183,42 +171,52 @@ def generate_response_from_quote(company, quote_data):
 
 def get_batch_stock_prices(tickers):
     """
-    Uses Alpha Vantage API to get prices for multiple stocks at once.
-    This is more reliable than using Gemini for stock data.
+    Uses Gemini to get prices for multiple stocks at once.
+    Note: This is a simplified version that doesn't use Google Search grounding.
+    For production, you might want to use Alpha Vantage API directly instead.
     """
-    print(f"\n[STOCK API] Calling get_batch_stock_prices for tickers: {tickers}")
+    print(f"\n[GEMINI] Calling get_batch_stock_prices for tickers: {tickers}")
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
-    # Import here to avoid circular imports
-    from . import stock_api
-    
-    results = []
-    for ticker in tickers:
-        try:
-            quote_data = stock_api.get_stock_quote(ticker)
-            if quote_data:
-                # Extract data from Alpha Vantage response
-                price = quote_data.get("05. price", "0.00")
-                change = quote_data.get("09. change", "0.00")
-                change_percent = quote_data.get("10. change percent", "0.00%")
-                
-                # Format change to include + sign if positive
-                if not change.startswith(('+', '-')):
-                    change = f"+{change}" if float(change) >= 0 else change
-                
-                # Format change_percent to include + sign if positive
-                if not change_percent.startswith(('+', '-')):
-                    change_percent = f"+{change_percent}" if float(change_percent.rstrip('%')) >= 0 else change_percent
-                
-                results.append({
-                    "symbol": ticker,
-                    "price": price,
-                    "change": change,
-                    "change_percent": change_percent
-                })
-            else:
-                print(f"[STOCK API] No data returned for {ticker}")
-        except Exception as e:
-            print(f"[STOCK API] Error fetching price for {ticker}: {e}")
-            continue
-    
-    return results if results else None
+    ticker_list_str = ", ".join(tickers)
+
+    prompt = f"""
+        Find the latest closing stock price, the dollar change, and the percentage change for the following US stock tickers: {ticker_list_str}.
+
+        Return ONLY a valid JSON array. Each object in the array must include these four keys exactly: "symbol", "price", "change", "change_percent".
+
+        The values should follow this format:
+        - "symbol": the stock ticker symbol as a string (e.g., "AAPL")
+        - "price": the latest closing price as a string with 2 decimal places (e.g., "213.25")
+        - "change": the absolute dollar change as a string with a "+" or "-" sign (e.g., "+2.50" or "-1.20")
+        - "change_percent": the percentage change as a string with a "+" or "-" sign and a "%" symbol (e.g., "+1.18%")
+
+        Output ONLY the JSON array and nothing else. Do NOT include any explanation or extra text.
+
+        Example format:
+        [
+        {{
+            "symbol": "AAPL",
+            "price": "213.25",
+            "change": "+2.50",
+            "change_percent": "+1.18%"
+        }}
+        ]
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        json_response_text = response.text.strip().replace("```json", "").replace("```", "").strip()
+        # Try to extract JSON from the response
+        start_idx = json_response_text.find('[')
+        end_idx = json_response_text.rfind(']') + 1
+        if start_idx >= 0 and end_idx > start_idx:
+            json_response_text = json_response_text[start_idx:end_idx]
+        return json.loads(json_response_text)
+    except (json.JSONDecodeError, AttributeError, ValueError) as e:
+        print(f"[GEMINI] Error decoding batch price JSON from Gemini: {e}")
+        print(f"[GEMINI] Response was: {response.text if 'response' in locals() else 'No response'}")
+        return None
+    except Exception as e:
+        print(f"[GEMINI] An unexpected error occurred during batch price fetch: {e}")
+        return None

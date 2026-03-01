@@ -27,16 +27,26 @@ function MarketMovers({ movers }) {
     );
   };
 
+  // Safety check for empty data
+  const hasGainers = movers?.top_gainers && movers.top_gainers.length > 0;
+  const hasLosers = movers?.top_losers && movers.top_losers.length > 0;
+
   return (
     <div>
       <h2 className="panel-header"><TrendingUp size={20} /> Market Movers</h2>
       <div className="movers-list">
-        {}
-        {movers?.top_gainers?.map(stock => createMoverItem(stock, 'gainer'))}
+        {hasGainers ? (
+          movers.top_gainers.map(stock => createMoverItem(stock, 'gainer'))
+        ) : (
+          <p style={{ padding: '0.5rem', color: '#666', fontSize: '0.9rem' }}>No gainers data</p>
+        )}
       </div>
       <div className="movers-list" style={{ marginTop: '1rem' }}>
-        {}
-        {movers?.top_losers?.map(stock => createMoverItem(stock, 'loser'))}
+        {hasLosers ? (
+          movers.top_losers.map(stock => createMoverItem(stock, 'loser'))
+        ) : (
+          <p style={{ padding: '0.5rem', color: '#666', fontSize: '0.9rem' }}>No losers data</p>
+        )}
       </div>
     </div>
   );

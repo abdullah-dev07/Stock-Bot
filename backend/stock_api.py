@@ -119,7 +119,7 @@ def search_ticker_symbols(keywords):
 
 def get_ipo_calendar():
     """
-    NEW: Fetches the upcoming IPOs for the next 3 months.
+    Fetches the upcoming IPOs for the next 3 months.
     """
     print(f"\n[STOCK API] Calling get_ipo_calendar")
     params = {
@@ -130,12 +130,21 @@ def get_ipo_calendar():
         response = requests.get(BASE_URL, params=params)
         response.raise_for_status()
         
-        
         ipo_data = []
         csv_file = io.StringIO(response.text)
         reader = csv.DictReader(csv_file)
+        
         for row in reader:
-            ipo_data.append(row)
+            # Transform CSV columns to match frontend expectations
+            # Alpha Vantage CSV columns might vary, so we check multiple possible field names
+            transformed_ipo = {
+                "symbol": row.get("symbol", row.get("Symbol", row.get("ticker", ""))),
+                "name": row.get("name", row.get("Name", row.get("company", ""))),
+                "ipoDate": row.get("ipoDate", row.get("IPO Date", row.get("date", row.get("Date", ""))))
+            }
+            # Only add if we have at least a symbol
+            if transformed_ipo["symbol"]:
+                ipo_data.append(transformed_ipo)
             
         return ipo_data[:10] 
         
@@ -244,9 +253,21 @@ def get_market_movers():
             print(f"[STOCK API] API Limit Reached: {data['Note']}")
             return None
         
+        # Transform Alpha Vantage data to match frontend expectations
+        def transform_mover(stock):
+            return {
+                "ticker": stock.get("ticker", stock.get("symbol", "")),
+                "price": stock.get("price", "0.00"),
+                "change_amount": stock.get("change_amount", "0.00"),
+                "change_percentage": stock.get("change_percentage", "0.00%")
+            }
+        
+        top_gainers = [transform_mover(stock) for stock in data.get("top_gainers", [])[:5]]
+        top_losers = [transform_mover(stock) for stock in data.get("top_losers", [])[:5]]
+        
         return {
-            "top_gainers": data.get("top_gainers", [])[:5],
-            "top_losers": data.get("top_losers", [])[:5]
+            "top_gainers": top_gainers,
+            "top_losers": top_losers
         }
     except requests.exceptions.RequestException as e:
         print(f"[STOCK API] Network/HTTP Error fetching market movers: {e}")

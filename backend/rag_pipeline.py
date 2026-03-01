@@ -5,8 +5,18 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from google import genai
+import google.generativeai as genai
 import os
+
+# Lazy initialization - configure API key when first needed
+def _ensure_configured():
+    """Ensure genai is configured with API key."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("[RAG] ERROR: GEMINI_API_KEY not found in environment variables!")
+        raise ValueError("GEMINI_API_KEY environment variable is required. Please set it in backend/.env file.")
+    # Configure - safe to call multiple times
+    genai.configure(api_key=api_key)
 
 
 vector_store_cache = {}
@@ -41,8 +51,8 @@ def is_question_relevant(question):
     or just conversational filler. This remains a synchronous function as it's a short, blocking call.
     """
     print(f"[RAG] Checking relevance of question: '{question}'")
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-    model = 'gemini-1.5-flash'
+    _ensure_configured()
+    model = genai.GenerativeModel('gemini-pro')
     
     prompt = f"""
     Analyze the user's input. Is it a genuine question or command seeking specific information from a financial document? Or is it a simple conversational phrase like "thank you", "okay", "hi", or "sounds good"?
@@ -53,7 +63,7 @@ def is_question_relevant(question):
     """
     
     try:
-        response = client.models.generate_content(contents=prompt, model=model)
+        response = model.generate_content(prompt)
         answer = response.text.strip().upper()
         print(f"[RAG] Relevance check response: {answer}")
         return answer == "YES"
@@ -68,10 +78,10 @@ async def query_rag_pipeline(company_name, question):
     print(f"[RAG] Querying RAG pipeline for {company_name} with question: '{question}'")
     
     if not is_question_relevant(question):
-        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        model = "gemini-1.5-flash"
+        _ensure_configured()
+        model = genai.GenerativeModel("gemini-pro")
         prompt = f"Give an appropriate response based on the user's prompt: {question}"
-        response = client.models.generate_content(contents=prompt, model=model) 
+        response = model.generate_content(prompt) 
         yield response.text
         return         
 
@@ -82,7 +92,7 @@ async def query_rag_pipeline(company_name, question):
     vector_store = vector_store_cache[company_name]
     retriever = vector_store.as_retriever(search_kwargs={"k":6})
     
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3)
+    llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.3)
     
     template = """
     You are an expert financial analyst. The user is asking about the 10-K report for {company_name}.
