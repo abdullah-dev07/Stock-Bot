@@ -28,9 +28,8 @@ from .auth import auth_router, get_current_user
 
 app = FastAPI()
 
-
-
-origins = [
+# CORS Configuration - supports both local development and production
+default_origins = [
     "http://localhost:5173",  
     "http://127.0.0.1:5173",  
     "http://localhost:3000",  
@@ -39,7 +38,16 @@ origins = [
     "http://127.0.0.1:8001",
 ]
 
+# Get CORS origins from environment variable (for production)
+# Format: "https://example.com,https://*.vercel.app"
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+if cors_origins_env:
+    production_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+    origins = default_origins + production_origins
+else:
+    origins = default_origins
 
+print(f"[CORS] Allowed origins: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
