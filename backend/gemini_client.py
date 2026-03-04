@@ -139,9 +139,12 @@ def generate_grounded_response(prompt, history=[]):
 
     history_text = "\n".join([f"{msg['role']}: {msg['text']}" for msg in recent_history])
     
+    summary_section = ""
+    if context_summary:
+        summary_section = "SUMMARY OF EARLIER CONVERSATION: " + context_summary + "\n\n"
+    
     full_prompt = f"""
-    {f'SUMMARY OF EARLIER CONVERSATION: {context_summary}\n\n' if context_summary else ''}
-    RECENT CONVERSATION:
+    {summary_section}RECENT CONVERSATION:
     {history_text}
 
     {prompt}
