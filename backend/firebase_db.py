@@ -88,7 +88,7 @@ def _get_summary_title(message_text):
             print("[DB] WARNING: GEMINI_API_KEY not found in environment variables!")
             return message_text[:35] + "..." if len(message_text) > 35 else message_text
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-pro")
+        model = genai.GenerativeModel("gemini-2.5-flash")
 
         prompt = f"""
         Generate a concise title, not more than 5 words, for the following message:
