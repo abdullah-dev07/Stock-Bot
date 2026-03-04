@@ -84,7 +84,7 @@ async def signup(request: Request):
         user = auth.create_user(email=email, password=password)
         print(f"[AUTH] User created successfully: {user.uid}")
         return JSONResponse(content={"message": "Signup successful"}, status_code=status.HTTP_201_CREATED)
-    except exceptions.EmailAlreadyExistsError:
+    except auth.EmailAlreadyExistsError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This email address is already in use.")
     except Exception as e:
         print(f"[AUTH] Error creating user: {e}")

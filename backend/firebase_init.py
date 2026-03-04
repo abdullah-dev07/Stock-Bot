@@ -32,14 +32,14 @@ def _get_firebase_credentials():
         cred_dict = {
             "type": "service_account",
             "project_id": project_id,
-            "private_key_id": os.environ.get("FIREBASE_PRIVATE_KEY_ID", ""),
+            "private_key_id": os.environ.get("FIREBASE_PRIVATE_KEY_ID") or "",
             "private_key": private_key,
             "client_email": client_email,
-            "client_id": os.environ.get("FIREBASE_CLIENT_ID", ""),
-            "auth_uri": os.environ.get("FIREBASE_AUTH_URI", "https://accounts.google.com/o/oauth2/auth"),
-            "token_uri": os.environ.get("FIREBASE_TOKEN_URI", "https://oauth2.googleapis.com/token"),
-            "auth_provider_x509_cert_url": os.environ.get("FIREBASE_AUTH_PROVIDER_X509_CERT_URL", "https://www.googleapis.com/oauth2/v1/certs"),
-            "client_x509_cert_url": os.environ.get("FIREBASE_CLIENT_X509_CERT_URL", ""),
+            "client_id": os.environ.get("FIREBASE_CLIENT_ID") or "",
+            "auth_uri": os.environ.get("FIREBASE_AUTH_URI") or "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": os.environ.get("FIREBASE_TOKEN_URI") or "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": os.environ.get("FIREBASE_AUTH_PROVIDER_X509_CERT_URL") or "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": os.environ.get("FIREBASE_CLIENT_X509_CERT_URL") or "",
         }
         print("[FIREBASE] Using environment variables for credentials.")
         return credentials.Certificate(cred_dict)
