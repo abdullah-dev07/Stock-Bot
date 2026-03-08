@@ -121,12 +121,36 @@ def save_and_yield(generator, user_id, chat_id, role):
     print(f"[APP] Saved full message to chat {chat_id} for user {user_id}.")
 
 
+@app.get("/health", tags=["System"])
+def health_check():
+    """Health check endpoint to verify the backend is running and configured."""
+    alpha_key = bool(os.environ.get("ALPHA_VANTAGE_API_KEY"))
+    gemini_key = bool(os.environ.get("GEMINI_API_KEY"))
+    sec_key = bool(os.environ.get("SEC_API_KEY"))
+    firebase_ok = firebase_init.db is not None
+    firebase_web_key = bool(os.environ.get("FIREBASE_WEB_API_KEY"))
+    
+    status = {
+        "status": "running",
+        "config": {
+            "ALPHA_VANTAGE_API_KEY": "set" if alpha_key else "MISSING",
+            "GEMINI_API_KEY": "set" if gemini_key else "MISSING",
+            "SEC_API_KEY": "set" if sec_key else "MISSING",
+            "FIREBASE_WEB_API_KEY": "set" if firebase_web_key else "MISSING",
+            "FIREBASE_ADMIN": "connected" if firebase_ok else "NOT CONNECTED",
+            "CORS_ORIGINS": os.environ.get("CORS_ORIGINS", "not set (using defaults)"),
+        }
+    }
+    return JSONResponse(content=status)
+
+
 @app.get("/ticker-data", tags=["Application"])
 def get_ticker_data(user: dict = Depends(get_current_user)):
     cache_key = "ticker_data"
     if is_cache_stale(cache_key) or not CACHE[cache_key]["data"]:
         print(f"[CACHE] {cache_key} cache is stale or empty. Fetching new data.")
-        tickers = ["AAPL", "NVDA", "AMD","GOOGL", "MSFT", "AMZN"]
+        # Reduced to 4 tickers to stay within free tier rate limits (5 calls/min)
+        tickers = ["AAPL", "NVDA", "GOOGL", "MSFT"]
         CACHE[cache_key]["data"] = gemini_client.get_batch_stock_prices(tickers)
         CACHE[cache_key]["timestamp"] = datetime.now(timezone.utc)
     else:

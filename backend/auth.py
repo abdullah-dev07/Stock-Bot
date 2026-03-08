@@ -112,11 +112,16 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         if response.ok:
             access_token = create_access_token(data={"sub": email})
             json_response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
+            
+            # Detect if running in production (HTTPS) or local (HTTP)
+            is_production = os.environ.get("RENDER") or os.environ.get("CORS_ORIGINS")
+            
             json_response.set_cookie(
                 key="stockbot_token", 
                 value=access_token, 
                 httponly=True,
-                samesite="lax"
+                samesite="none" if is_production else "lax",
+                secure=True if is_production else False,
             )
             return json_response
         else:

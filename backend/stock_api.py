@@ -8,12 +8,31 @@ from bs4 import BeautifulSoup
 import time
 
 
-
 load_dotenv()
 
 SEC_API_KEY = os.environ.get("SEC_API_KEY")
 API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
 BASE_URL = "https://www.alphavantage.co/query"
+
+# Warn if API key is missing
+if not API_KEY:
+    print("[STOCK API] WARNING: ALPHA_VANTAGE_API_KEY not found in environment variables! Stock data will not be available.")
+else:
+    print(f"[STOCK API] Alpha Vantage API key loaded (ends with ...{API_KEY[-4:]})")
+
+
+def _check_api_response(data, function_name):
+    """Check for common Alpha Vantage error responses."""
+    if "Note" in data:
+        print(f"[STOCK API] API Rate Limit Reached for {function_name}: {data['Note']}")
+        return False
+    if "Information" in data:
+        print(f"[STOCK API] API Information for {function_name}: {data['Information']}")
+        return False
+    if "Error Message" in data:
+        print(f"[STOCK API] API Error for {function_name}: {data['Error Message']}")
+        return False
+    return True
 
 
 def get_technical_indicator(ticker, function, time_period="60", series_type="close"):
@@ -21,6 +40,9 @@ def get_technical_indicator(ticker, function, time_period="60", series_type="clo
     Generic function to fetch technical indicators like SMA, RSI, etc.
     Returns the most recent data point.
     """
+    if not API_KEY:
+        print(f"[STOCK API] Skipping {function} - no API key")
+        return None
 
     print(f"\n[STOCK API] calling {function} for ticker: {ticker}")
     params = {
@@ -33,11 +55,11 @@ def get_technical_indicator(ticker, function, time_period="60", series_type="clo
     }
 
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
-        if "Note" in data:
-            print(f"[STOCK API] API limited reached for {function} : {data['Note']}")
+        
+        if not _check_api_response(data, function):
             return None
         
         data_key = f"Technical Analysis: {function}"
@@ -58,6 +80,10 @@ def get_prediction_data(ticker):
     """
     Gathers all fundamental and technical data required for making a prediction.
     """    
+    if not API_KEY:
+        print(f"[STOCK API] Cannot get prediction data - no API key")
+        return None
+
     print(f"\n[STOCK API] Gathering all prediction data for ticker: '{ticker}")
 
     overview = get_company_overview(ticker)
@@ -65,19 +91,27 @@ def get_prediction_data(ticker):
         print(f"Company overview for {ticker} not found using STOCK API")
         return None
     
+    time.sleep(1)  # Rate limit delay
     rsi_data = get_technical_indicator(ticker, "RSI")
+    time.sleep(1)
     sma_data = get_technical_indicator(ticker, "SMA")
 
+    time.sleep(1)
     quote = get_stock_quote(ticker)
+
+    time.sleep(1)
+    sma_50 = get_technical_indicator(ticker, "SMA", time_period="50")
+    time.sleep(1)
+    sma_200 = get_technical_indicator(ticker, "SMA", time_period="200")
 
     prediction_payload = {
         "company_name": overview.get("Name", ticker),
         "pe_ratio": overview.get("PERatio", "N/A"),
         "eps": overview.get("EPS", "N/A"),
         "analyst_target_price" : overview.get("AnalystTargetPrice", "N/A"),
-        "rsi": rsi_data.get("RSI", "N/A") if rsi_data else "N//A",
-        "sma_50": get_technical_indicator(ticker, "SMA", time_period="50").get("SMA") if get_technical_indicator(ticker, "SMA", time_period="50") else "N/A",
-        "sma_200": get_technical_indicator(ticker, "SMA", time_period="200").get("SMA") if get_technical_indicator(ticker, "SMA", time_period="200") else "N/A",
+        "rsi": rsi_data.get("RSI", "N/A") if rsi_data else "N/A",
+        "sma_50": sma_50.get("SMA") if sma_50 else "N/A",
+        "sma_200": sma_200.get("SMA") if sma_200 else "N/A",
         "current_price": quote.get("05. price", "N/A") if quote else "N/A"
     }
 
@@ -88,6 +122,10 @@ def search_ticker_symbols(keywords):
     Searches for stock tickers and returns up to 5 best matches.
     Returns None on API/network failure, [] on no results.
     """
+    if not API_KEY:
+        print(f"[STOCK API] Cannot search tickers - no API key")
+        return None
+
     search_term = keywords.upper()
     print(f"\n[STOCK API] Calling search_ticker_symbols with keywords: '{search_term}'")
     
@@ -97,12 +135,12 @@ def search_ticker_symbols(keywords):
         "apikey": API_KEY,
     }
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=15)
         print(f"response: {response}")
         response.raise_for_status()
         data = response.json()
-        if "Note" in data:
-            print(f"[STOCK API] API Limit Reached: {data['Note']}")
+        
+        if not _check_api_response(data, "SYMBOL_SEARCH"):
             return None
         
         if "bestMatches" in data:
@@ -121,14 +159,26 @@ def get_ipo_calendar():
     """
     Fetches the upcoming IPOs for the next 3 months.
     """
+    if not API_KEY:
+        print(f"[STOCK API] Cannot get IPO calendar - no API key")
+        return None
+
     print(f"\n[STOCK API] Calling get_ipo_calendar")
     params = {
         "function": "IPO_CALENDAR",
         "apikey": API_KEY,
     }
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=15)
         response.raise_for_status()
+        
+        # Check if response looks like an error JSON instead of CSV
+        try:
+            json_data = response.json()
+            if not _check_api_response(json_data, "IPO_CALENDAR"):
+                return None
+        except ValueError:
+            pass  # Not JSON, good - it's CSV data
         
         ipo_data = []
         csv_file = io.StringIO(response.text)
@@ -162,6 +212,10 @@ def get_stock_quote(ticker):
     Gets the latest price information for a given ticker.
     Returns None on API/network failure.
     """
+    if not API_KEY:
+        print(f"[STOCK API] Cannot get stock quote - no API key")
+        return None
+
     print(f"\n[STOCK API] Calling get_stock_quote with ticker: '{ticker}'")
     params = {
         "function": "GLOBAL_QUOTE",
@@ -169,11 +223,11 @@ def get_stock_quote(ticker):
         "apikey": API_KEY,
     }
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
-        if "Note" in data:
-            print(f"[STOCK API] API Limit Reached: {data['Note']}")
+        
+        if not _check_api_response(data, f"GLOBAL_QUOTE({ticker})"):
             return None
 
         quote_data = data.get("Global Quote", {})
@@ -191,6 +245,10 @@ def get_company_overview(ticker):
     Gets fundamental data and key metrics for a company.
     Returns None on API/network failure.
     """
+    if not API_KEY:
+        print(f"[STOCK API] Cannot get company overview - no API key")
+        return None
+
     print(f"\n[STOCK API] Calling get_company_overview with ticker: '{ticker}'")
     params = {
         "function": "OVERVIEW",
@@ -198,11 +256,11 @@ def get_company_overview(ticker):
         "apikey": API_KEY,
     }
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
-        if "Note" in data:
-            print(f"[STOCK API] API Limit Reached: {data['Note']}")
+        
+        if not _check_api_response(data, f"OVERVIEW({ticker})"):
             return None
 
         if data.get("Symbol") and data.get("Symbol").upper() == ticker.upper():
@@ -219,6 +277,10 @@ def get_earnings(ticker):
     Gets the annual and quarterly earnings (EPS) for a company.
     Returns None on API/network failure.
     """
+    if not API_KEY:
+        print(f"[STOCK API] Cannot get earnings - no API key")
+        return None
+
     print(f"\n[STOCK API] Calling get_earnings with ticker: '{ticker}'")
     params = {
         "function": "EARNINGS",
@@ -226,12 +288,13 @@ def get_earnings(ticker):
         "apikey": API_KEY,
     }
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
-        if "Note" in data:
-            print(f"[STOCK API] API Limit Reached: {data['Note']}")
+        
+        if not _check_api_response(data, f"EARNINGS({ticker})"):
             return None
+        
         return data
     except requests.exceptions.RequestException as e:
         print(f"[STOCK API] Network/HTTP Error fetching earnings for {ticker}: {e}")
@@ -240,17 +303,21 @@ def get_earnings(ticker):
 
 def get_market_movers():
     """Fetches the top 5 US market gainers and losers for the day."""
+    if not API_KEY:
+        print(f"[STOCK API] Cannot get market movers - no API key")
+        return None
+
     print(f"\n[STOCK API] Calling get_market_movers")
     params = {
         "function": "TOP_GAINERS_LOSERS",
         "apikey": API_KEY,
     }
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
-        if "Note" in data:
-            print(f"[STOCK API] API Limit Reached: {data['Note']}")
+        
+        if not _check_api_response(data, "TOP_GAINERS_LOSERS"):
             return None
         
         # Transform Alpha Vantage data to match frontend expectations
@@ -278,6 +345,10 @@ def get_market_news():
     """
     NEW: Fetches the latest general financial news articles.
     """
+    if not API_KEY:
+        print(f"[STOCK API] Cannot get market news - no API key")
+        return None
+
     print(f"\n[STOCK API] Calling get_market_news")
     params = {
         "function": "NEWS_SENTIMENT",
@@ -286,11 +357,11 @@ def get_market_news():
         "apikey": API_KEY,
     }
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
-        if "Note" in data:
-            print(f"[STOCK API] API Limit Reached: {data['Note']}")
+        
+        if not _check_api_response(data, "NEWS_SENTIMENT"):
             return None
         
         return data.get("feed", [])

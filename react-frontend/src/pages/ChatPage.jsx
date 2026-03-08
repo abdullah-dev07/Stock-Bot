@@ -20,34 +20,46 @@ function ChatPage() {
   useEffect(() => {
     const token = localStorage.getItem('stockbot_token');
 
-    const fetchData = async (url) => {
+    const fetchData = async (url, defaultValue) => {
       try {
-        
+        console.log(`[ChatPage] Fetching ${API_BASE_URL}${url}`);
         const response = await fetch(`${API_BASE_URL}${url}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error(`Failed to fetch ${url}`);
-        return await response.json();
+        if (!response.ok) {
+          console.error(`[ChatPage] Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+          return defaultValue;
+        }
+        const data = await response.json();
+        console.log(`[ChatPage] Received data for ${url}:`, data ? 'OK' : 'empty');
+        return data;
       } catch (error) {
-        console.error(error);
-        
-        if (url.includes('movers')) return { top_gainers: [], top_losers: [] };
-        return [];
+        console.error(`[ChatPage] Error fetching ${url}:`, error);
+        return defaultValue;
       }
     };
 
     const fetchInitialData = async () => {
+      // Fetch data sequentially to avoid overwhelming the backend API rate limits
+      // The backend caches results, so subsequent loads will be fast
+      console.log('[ChatPage] Starting data fetch...');
       
-      const [ticker, movers, newsData, ipoData] = await Promise.all([
-        fetchData('/ticker-data'),
-        fetchData('/market-movers'),
-        fetchData('/market-news'),
-        fetchData('/ipo-calendar')
-      ]);
+      // Fetch ticker data first (this is the slowest due to multiple API calls)
+      const ticker = await fetchData('/ticker-data', []);
       setTickerData(ticker);
+      
+      // Then fetch the rest in parallel (these are single API calls each)
+      const [movers, newsData, ipoData] = await Promise.all([
+        fetchData('/market-movers', { top_gainers: [], top_losers: [] }),
+        fetchData('/market-news', []),
+        fetchData('/ipo-calendar', [])
+      ]);
+      
       setMarketMovers(movers);
       setNews(newsData);
       setIpos(ipoData);
+      
+      console.log('[ChatPage] All data fetched.');
     };
 
     if (token) {

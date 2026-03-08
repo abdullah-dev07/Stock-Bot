@@ -187,16 +187,25 @@ def generate_response_from_quote(company, quote_data):
 def get_batch_stock_prices(tickers):
     """
     Uses Alpha Vantage API to get prices for multiple stocks at once.
-    This is more reliable than using Gemini for stock data.
+    Includes rate limiting delays to avoid exceeding free tier limits (5 calls/min).
     """
+    import time
     print(f"\n[STOCK API] Calling get_batch_stock_prices for tickers: {tickers}")
     
     # Import here to avoid circular imports
     from . import stock_api
     
+    if not os.environ.get("ALPHA_VANTAGE_API_KEY"):
+        print("[STOCK API] WARNING: ALPHA_VANTAGE_API_KEY not set. Cannot fetch stock prices.")
+        return None
+    
     results = []
-    for ticker in tickers:
+    for i, ticker in enumerate(tickers):
         try:
+            # Add delay between calls to respect rate limits (5 calls/min for free tier)
+            if i > 0:
+                time.sleep(1.5)
+            
             quote_data = stock_api.get_stock_quote(ticker)
             if quote_data:
                 # Extract data from Alpha Vantage response
