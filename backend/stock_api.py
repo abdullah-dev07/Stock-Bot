@@ -302,72 +302,175 @@ def get_earnings(ticker):
 
 
 def get_market_movers():
-    """Fetches the top 5 US market gainers and losers for the day."""
-    if not API_KEY:
-        print(f"[STOCK API] Cannot get market movers - no API key")
-        return None
-
-    print(f"\n[STOCK API] Calling get_market_movers")
-    params = {
-        "function": "TOP_GAINERS_LOSERS",
-        "apikey": API_KEY,
-    }
-    try:
-        response = requests.get(BASE_URL, params=params, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        
-        if not _check_api_response(data, "TOP_GAINERS_LOSERS"):
-            return None
-        
-        # Transform Alpha Vantage data to match frontend expectations
-        def transform_mover(stock):
-            return {
-                "ticker": stock.get("ticker", stock.get("symbol", "")),
-                "price": stock.get("price", "0.00"),
-                "change_amount": stock.get("change_amount", "0.00"),
-                "change_percentage": stock.get("change_percentage", "0.00%")
-            }
-        
-        top_gainers = [transform_mover(stock) for stock in data.get("top_gainers", [])[:5]]
-        top_losers = [transform_mover(stock) for stock in data.get("top_losers", [])[:5]]
-        
-        return {
-            "top_gainers": top_gainers,
-            "top_losers": top_losers
+    """
+    Fetches the top 5 US market gainers and losers for the day.
+    Falls back to computing movers from popular stock quotes if the 
+    premium TOP_GAINERS_LOSERS endpoint is not available.
+    """
+    # Try Alpha Vantage premium endpoint first
+    if API_KEY:
+        print(f"\n[STOCK API] Calling get_market_movers (premium endpoint)")
+        params = {
+            "function": "TOP_GAINERS_LOSERS",
+            "apikey": API_KEY,
         }
-    except requests.exceptions.RequestException as e:
-        print(f"[STOCK API] Network/HTTP Error fetching market movers: {e}")
+        try:
+            response = requests.get(BASE_URL, params=params, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            
+            if _check_api_response(data, "TOP_GAINERS_LOSERS"):
+                def transform_mover(stock):
+                    return {
+                        "ticker": stock.get("ticker", stock.get("symbol", "")),
+                        "price": stock.get("price", "0.00"),
+                        "change_amount": stock.get("change_amount", "0.00"),
+                        "change_percentage": stock.get("change_percentage", "0.00%")
+                    }
+                
+                top_gainers = [transform_mover(stock) for stock in data.get("top_gainers", [])[:5]]
+                top_losers = [transform_mover(stock) for stock in data.get("top_losers", [])[:5]]
+                
+                return {
+                    "top_gainers": top_gainers,
+                    "top_losers": top_losers
+                }
+            else:
+                print("[STOCK API] TOP_GAINERS_LOSERS is a premium endpoint. Falling back to quote-based movers.")
+        except requests.exceptions.RequestException as e:
+            print(f"[STOCK API] Network/HTTP Error fetching market movers: {e}")
+    
+    # Fallback: Fetch quotes for popular stocks and compute movers
+    return _get_movers_from_quotes()
+
+
+def _get_movers_from_quotes():
+    """
+    Fallback: Fetch quotes for well-known stocks and sort by change% 
+    to compute gainers/losers. Uses free GLOBAL_QUOTE endpoint.
+    """
+    print("[STOCK API] Using fallback: computing movers from individual quotes")
+    popular_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AMD"]
+    
+    quotes = []
+    for i, ticker in enumerate(popular_tickers):
+        if i > 0:
+            time.sleep(1.5)  # Rate limit delay
+        try:
+            q = get_stock_quote(ticker)
+            if q:
+                change_pct_str = q.get("10. change percent", "0%").rstrip('%')
+                try:
+                    change_pct = float(change_pct_str)
+                except ValueError:
+                    change_pct = 0.0
+                
+                quotes.append({
+                    "ticker": ticker,
+                    "price": q.get("05. price", "0.00"),
+                    "change_amount": q.get("09. change", "0.00"),
+                    "change_percentage": f"{change_pct:.2f}%",
+                    "_change_pct_float": change_pct
+                })
+        except Exception as e:
+            print(f"[STOCK API] Error in fallback mover fetch for {ticker}: {e}")
+            continue
+    
+    if not quotes:
+        print("[STOCK API] Fallback movers: no quotes retrieved")
         return None
+    
+    # Sort by change percentage
+    sorted_quotes = sorted(quotes, key=lambda x: x["_change_pct_float"], reverse=True)
+    
+    # Remove the internal sort key
+    for q in sorted_quotes:
+        q.pop("_change_pct_float", None)
+    
+    # Top gainers = highest positive change, top losers = most negative change
+    gainers = [q for q in sorted_quotes if float(q["change_amount"]) >= 0][:5]
+    losers = [q for q in reversed(sorted_quotes) if float(q["change_amount"]) < 0][:5]
+    
+    print(f"[STOCK API] Fallback movers: {len(gainers)} gainers, {len(losers)} losers")
+    return {
+        "top_gainers": gainers,
+        "top_losers": losers
+    }
 
 
 def get_market_news():
     """
-    NEW: Fetches the latest general financial news articles.
+    Fetches financial news. Tries Alpha Vantage premium endpoint first,
+    falls back to free Google News RSS feed.
     """
-    if not API_KEY:
-        print(f"[STOCK API] Cannot get market news - no API key")
-        return None
+    # Try Alpha Vantage premium endpoint first
+    if API_KEY:
+        print(f"\n[STOCK API] Calling get_market_news (premium endpoint)")
+        params = {
+            "function": "NEWS_SENTIMENT",
+            "topics": "financial_markets", 
+            "limit": "10", 
+            "apikey": API_KEY,
+        }
+        try:
+            response = requests.get(BASE_URL, params=params, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            
+            if _check_api_response(data, "NEWS_SENTIMENT"):
+                return data.get("feed", [])
+            else:
+                print("[STOCK API] NEWS_SENTIMENT is a premium endpoint. Falling back to RSS feed.")
+        except requests.exceptions.RequestException as e:
+            print(f"[STOCK API] Network/HTTP Error fetching market news: {e}")
 
-    print(f"\n[STOCK API] Calling get_market_news")
-    params = {
-        "function": "NEWS_SENTIMENT",
-        "topics": "financial_markets", 
-        "limit": "10", 
-        "apikey": API_KEY,
-    }
+    # Fallback: Use free Google News RSS feed
+    return _get_news_from_rss()
+
+
+def _get_news_from_rss():
+    """
+    Fallback: Fetch financial news from Google News RSS feed (completely free).
+    """
+    import xml.etree.ElementTree as ET
+    
+    print("[STOCK API] Using fallback: Google News RSS feed for market news")
+    rss_url = "https://news.google.com/rss/search?q=stock+market+finance&hl=en-US&gl=US&ceid=US:en"
+    
     try:
-        response = requests.get(BASE_URL, params=params, timeout=15)
+        response = requests.get(rss_url, timeout=15, headers={
+            'User-Agent': 'StockBot/1.0'
+        })
         response.raise_for_status()
-        data = response.json()
         
-        if not _check_api_response(data, "NEWS_SENTIMENT"):
-            return None
+        root = ET.fromstring(response.content)
+        articles = []
         
-        return data.get("feed", [])
+        for item in root.findall('.//item')[:10]:
+            title = item.find('title')
+            link = item.find('link')
+            pub_date = item.find('pubDate')
+            source = item.find('source')
+            
+            # Build summary from source and date
+            summary_parts = []
+            if source is not None and source.text:
+                summary_parts.append(f"Source: {source.text}")
+            if pub_date is not None and pub_date.text:
+                summary_parts.append(pub_date.text)
+            
+            articles.append({
+                "title": title.text if title is not None else "Untitled",
+                "url": link.text if link is not None else "#",
+                "summary": " | ".join(summary_parts) if summary_parts else "Financial news",
+                "source": source.text if source is not None else "Google News"
+            })
         
-    except requests.exceptions.RequestException as e:
-        print(f"[STOCK API] Network/HTTP Error fetching market news: {e}")
+        print(f"[STOCK API] RSS fallback: fetched {len(articles)} articles")
+        return articles
+        
+    except Exception as e:
+        print(f"[STOCK API] Error fetching RSS news: {e}")
         return None
 
 

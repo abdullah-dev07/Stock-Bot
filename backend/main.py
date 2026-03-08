@@ -162,7 +162,31 @@ def get_market_movers(user: dict = Depends(get_current_user)):
     cache_key = "movers_data"
     if is_cache_stale(cache_key) or not CACHE[cache_key]["data"]:
         print(f"[CACHE] {cache_key} cache is stale or empty. Fetching new data.")
-        CACHE[cache_key]["data"] = stock_api.get_market_movers()
+        movers_data = stock_api.get_market_movers()
+        
+        # If premium endpoint + fallback both failed, derive from cached ticker data
+        if not movers_data and CACHE["ticker_data"]["data"]:
+            print("[CACHE] Deriving movers from cached ticker data as last resort")
+            ticker_data = CACHE["ticker_data"]["data"]
+            sorted_tickers = sorted(
+                ticker_data,
+                key=lambda x: float(x.get("change", "0").replace("+", "")),
+                reverse=True
+            )
+            movers_data = {
+                "top_gainers": [
+                    {"ticker": s["symbol"], "price": s["price"], 
+                     "change_amount": s["change"], "change_percentage": s.get("change_percent", "0%")}
+                    for s in sorted_tickers if float(s.get("change", "0").replace("+", "")) >= 0
+                ][:5],
+                "top_losers": [
+                    {"ticker": s["symbol"], "price": s["price"],
+                     "change_amount": s["change"], "change_percentage": s.get("change_percent", "0%")}
+                    for s in reversed(sorted_tickers) if float(s.get("change", "0").replace("+", "")) < 0
+                ][:5]
+            }
+        
+        CACHE[cache_key]["data"] = movers_data
         CACHE[cache_key]["timestamp"] = datetime.now(timezone.utc)
     else:
         print(f"[CACHE] Serving {cache_key} data from cache.")
