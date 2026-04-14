@@ -1,0 +1,62 @@
+.chat-input-area { padding: 1rem 1.5rem; border-top: 1px solid #333; background-color: #242424; }
+.chat-input-area form { display: flex; gap: 0.75rem; align-items: center; }
+
+.chat-input-area input {
+    flex-grow: 1;
+    padding: 0.8rem 1rem;
+    border: 1px solid #555;
+    border-radius: 8px;
+    background-color: #333;
+    color: var(--text-color);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.3s;
+    height: 48px;
+}
+.chat-input-area input:focus { border-color: var(--primary-color); }
+
+.chat-input-area button {
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: 8px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    flex-shrink: 0;
+}
+.chat-input-area button:hover { background-color: #3e8e41; }
+
+.rag-action-btn {
+    padding: 0 1.25rem;
+    height: 48px;
+    min-width: 140px;
+    border: 1px solid var(--primary-color);
+    background-color: transparent;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.rag-action-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.rag-action-btn.exit {
+    background-color: rgb(211, 69, 69);
+    border-color: #f44336;
+    color: white;
+}
+
+.rag-action-btn.exit:hover {
+    background-color: #bd160a;
+    color: white;
+}

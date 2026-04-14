@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './ChatInput.css';
 
 function ChatInput({ onSendMessage, isRagMode, onStartRag, onExitRag }) {
     const [message, setMessage] = useState('');

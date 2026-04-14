@@ -24,7 +24,8 @@ auth_router = APIRouter(
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "a-secure-default-secret-key")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 300
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY")
@@ -37,6 +38,13 @@ def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def create_refresh_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -57,6 +65,8 @@ async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)
         
     try:
         payload = jwt.decode(token_to_verify, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") == "refresh":
+            raise credentials_exception
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
@@ -111,7 +121,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         
         if response.ok:
             access_token = create_access_token(data={"sub": email})
-            json_response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
+            refresh_token = create_refresh_token(data={"sub": email})
+            json_response = JSONResponse(content={
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer"
+            })
             
             # Detect if running in production (HTTPS) or local (HTTP)
             is_production = os.environ.get("RENDER") or os.environ.get("CORS_ORIGINS")
@@ -136,6 +151,47 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             detail=f"An unexpected error occurred: {e}"
         )
     
+
+@auth_router.post("/refresh")
+async def refresh_access_token(request: Request):
+    """
+    Exchanges a valid refresh token for a new access + refresh token pair.
+    Frontend should POST to: /auth/refresh
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request body")
+
+    refresh_token = body.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Refresh token required")
+
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+        user = auth.get_user_by_email(email)
+
+        new_access_token = create_access_token(data={"sub": email})
+        new_refresh_token = create_refresh_token(data={"sub": email})
+
+        return JSONResponse(content={
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
+            "token_type": "bearer"
+        })
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+    except auth.UserNotFoundError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
 @auth_router.post("/logout")
 async def logout():

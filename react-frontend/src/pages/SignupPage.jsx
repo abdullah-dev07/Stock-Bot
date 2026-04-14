@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config';
+import '../styles/auth.css';
 
 function SignupPage() {
     const [email, setEmail] = useState('');
@@ -13,16 +15,14 @@ function SignupPage() {
         setError('');
         setSuccess('');
 
-        
         const formData = new FormData();
         formData.append('email', email);
         formData.append('password', password);
 
         try {
-            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
             const response = await fetch(`${API_BASE_URL}/auth/signup`, {
                 method: 'POST',
-                body: formData, 
+                body: formData,
             });
 
             const responseData = await response.json();
@@ -31,7 +31,7 @@ function SignupPage() {
                 setSuccess('Signup successful! Redirecting to login...');
                 setTimeout(() => {
                     navigate('/login');
-                }, 2000); 
+                }, 2000);
             } else {
                 setError(responseData.detail || 'An error occurred during signup.');
             }

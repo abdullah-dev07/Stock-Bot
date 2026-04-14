@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import API_BASE_URL from '../config';
+import { setTokens } from '../utils/apiClient';
+import '../styles/auth.css';
 
 function LoginPage() {
     const [email, setEmail] = useState('');
@@ -11,14 +14,11 @@ function LoginPage() {
         e.preventDefault();
         setError('');
 
-        
         const formData = new URLSearchParams();
         formData.append('username', email);
         formData.append('password', password);
 
         try {
-            
-            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
             const response = await fetch(`${API_BASE_URL}/auth/token`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -27,8 +27,8 @@ function LoginPage() {
 
             if (response.ok) {
                 const data = await response.json();
-                localStorage.setItem('stockbot_token', data.access_token);
-                navigate('/'); 
+                setTokens(data.access_token, data.refresh_token);
+                navigate('/');
             } else {
                 const errorData = await response.json();
                 setError(errorData.detail || 'Invalid email or password.');
@@ -46,7 +46,6 @@ function LoginPage() {
                     {error && <div className="flash error">{error}</div>}
                     <div className="form-group">
                         <label htmlFor="email">Email</label>
-                        {}
                         <input
                             type="email"
                             name="username"

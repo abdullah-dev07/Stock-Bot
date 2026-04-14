@@ -1,5 +1,6 @@
 import React from 'react';
-import { Rocket } from 'lucide-react'; 
+import { Rocket } from 'lucide-react';
+import './IpoPanel.css';
 
 function IpoPanel({ ipos }) {
   // Add safety check for empty or undefined data

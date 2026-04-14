@@ -1,0 +1,8 @@
+.movers-list { display: flex; flex-direction: column; gap: 1rem; }
+.mover-item { display: flex; flex-direction: column; padding: 0.75rem; background-color: #2a2a2a; border-radius: 8px; border-left: 4px solid transparent; animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
+.mover-item.gainer { border-color: var(--positive-change); }
+.mover-item.loser { border-color: var(--negative-change); }
+.mover-item-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+.mover-item-details { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; margin-top: 0.25rem; color: #b0b0b0; }
+.mover-item .change.positive { color: var(--positive-change); }
+.mover-item .change.negative { color: var(--negative-change); }

@@ -1,4 +1,5 @@
 import React from 'react';
+import './ChatSidebar.css';
 
 function ChatSidebar({ sessions, activeChatId, onSelectChat, onNewChat, onDeleteChat }) {
     

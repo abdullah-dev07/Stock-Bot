@@ -3,13 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ChatPage from './pages/ChatPage';
-import './App.css';
-
-
+import { hasAuthTokens } from './utils/apiClient';
 
 function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('stockbot_token');
-  if (!token) {
+  if (!hasAuthTokens()) {
     return <Navigate to="/login" />;
   }
   return children;
@@ -21,15 +18,14 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
-        <Route 
-          path="/" 
+        <Route
+          path="/"
           element={
             <ProtectedRoute>
               <ChatPage />
             </ProtectedRoute>
-          } 
+          }
         />
-        {}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { marked } from 'marked';
+import './Message.css';
 
 function Message({ role, text, choices, original_intent, onClarificationSelect }) {
   const isBot = role === 'model';

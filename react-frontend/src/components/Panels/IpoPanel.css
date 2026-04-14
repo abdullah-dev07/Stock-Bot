@@ -1,0 +1,6 @@
+.ipo-list { display: flex; flex-direction: column; gap: 1rem; }
+.ipo-item { background-color: #2a2a2a; border-radius: 8px; padding: 1rem; animation: fadeInUp 0.5s ease-out forwards; opacity: 0; border-left: 4px solid #8e44ad; }
+.ipo-item-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 0.5rem; }
+.ipo-item .symbol { font-size: 1.1rem; color: var(--primary-color); }
+.ipo-item .date { font-size: 0.8rem; color: #b0b0b0; font-weight: normal; }
+.ipo-item .name { font-size: 0.9rem; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

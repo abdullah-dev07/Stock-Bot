@@ -1,0 +1,21 @@
+.side-panel {
+    background-color: var(--surface-color);
+    border-radius: 16px;
+    padding: 1.5rem;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.side-panel h2.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 1.2rem;
+    position: sticky;
+    top: -1.5rem;
+    background: var(--surface-color);
+    padding: 1.5rem 0 1rem 0;
+    margin: -1.5rem 0 1.5rem 0;
+    z-index: 10;
+}
