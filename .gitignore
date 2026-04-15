@@ -34,6 +34,12 @@ stockbot_env/
 venv/
 env/
 
+# Generated docs
+DEPLOYMENT.md
+DEPLOYMENT_CHECKLIST.md
+FIREBASE_SETUP.md
+SETUP_GUIDE.md
+
 # IDE
 .vscode/
 .idea/
