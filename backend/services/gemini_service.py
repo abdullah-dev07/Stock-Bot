@@ -2,38 +2,57 @@ import os
 import json
 import google.generativeai as genai
 
-# Configure API key once at module level
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+from ..config import GEMINI_API_KEY
+
+
+def _ensure_configured():
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY environment variable is required.")
+    genai.configure(api_key=GEMINI_API_KEY)
+
+
+def generate_chat_title(message_text):
+    """Generates a concise title from a user's first message."""
+    try:
+        _ensure_configured()
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        prompt = (
+            f'Generate a concise title, not more than 5 words, for the following message:\n\n'
+            f'Message: "{message_text}"\n\n'
+            f'The title should be short, descriptive, and capture the essence of the message.\n\nTitle:'
+        )
+        response = model.generate_content(prompt)
+        title = response.text.strip().replace("*", "").replace('"', "")
+        return title if title else "Untitled"
+    except Exception as e:
+        print(f"[GEMINI] Error generating chat title: {e}")
+        return message_text[:35] + "..." if len(message_text) > 35 else message_text
 
 
 def summarize_conversation(history):
-    """Uses a fast model to summarize the older part of a conversation."""
-    print("[GEMINI] Summarizing older conversation history...")
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
+    """Summarizes the older part of a conversation for context compression."""
+    _ensure_configured()
+    model = genai.GenerativeModel('gemini-2.5-flash')
     history_text = "\n".join([f"{msg['role']}: {msg['text']}" for msg in history])
-    
-    prompt = f"""
-    Concisely summarize the key points of the following conversation into a single paragraph. 
-    This summary will be used as context for an ongoing chat.
-
-    Conversation:
-    {history_text}
-    """
-    
+    prompt = (
+        f"Concisely summarize the key points of the following conversation "
+        f"into a single paragraph. This summary will be used as context for an ongoing chat.\n\n"
+        f"Conversation:\n{history_text}"
+    )
     try:
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         print(f"[GEMINI] Error during summarization: {e}")
-        return "" 
+        return ""
 
-def get_intent(user_prompt, history=[]):
-    """
-    Uses Gemini to determine the user's intent and extract the main entity.
-    """
-    print(f"\n[GEMINI] Calling get_intent for prompt: '{user_prompt}'")
-    model = genai.GenerativeModel('gemini-1.5-flash')
+
+def get_intent(user_prompt, history=None):
+    """Classifies user intent and extracts the stock entity."""
+    if history is None:
+        history = []
+    _ensure_configured()
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
     context_summary = ""
     if len(history) > 4:
@@ -70,20 +89,17 @@ def get_intent(user_prompt, history=[]):
 
     try:
         response = model.generate_content(prompt)
-        json_response_text = response.text.strip().replace("```json", "").replace("```", "")
-        return json.loads(json_response_text)
+        json_text = response.text.strip().replace("```json", "").replace("```", "")
+        return json.loads(json_text)
     except (json.JSONDecodeError, AttributeError) as e:
-        print(f"[GEMINI] Error decoding intent JSON from Gemini: {e}")
+        print(f"[GEMINI] Error decoding intent JSON: {e}")
         return {"intent": "general_knowledge", "entity": user_prompt}
 
 
 def generate_prediction_response(prediction_data, user_prompt):
-    """
-    Generates a stock prediction analysis based on provided data.
-    """
-    print(f"\n[GEMINI] Calling generate_prediction_response for: '{prediction_data.get('company_name')}'")
-    model = genai.GenerativeModel('gemini-1.5-flash')
-
+    """Streamed stock prediction analysis from fundamentals/technicals."""
+    _ensure_configured()
+    model = genai.GenerativeModel('gemini-2.5-flash')
     prompt = f"""
         You are an expert financial analyst. Your task is to provide a stock price prediction based ONLY on the recently fetched technical and fundamental data.
 
@@ -100,7 +116,6 @@ def generate_prediction_response(prediction_data, user_prompt):
 
         Provide your analysis in markdown format. Conclude with: "This is a prediction based on available data and not financial advice. Stock markets are volatile, and past performance is not indicative of future results. Always do your own research."
         """
-
     try:
         response = model.generate_content(prompt, stream=True)
         for chunk in response:
@@ -111,12 +126,12 @@ def generate_prediction_response(prediction_data, user_prompt):
         yield "Sorry, an error occurred while generating the prediction."
 
 
-def generate_grounded_response(prompt, history=[]):
-    """
-    Generates a response for complex, qualitative, or advice-seeking questions.
-    """
-    print(f"\n[GEMINI] Calling generate_grounded_response for prompt: '{prompt}'")
-    model = genai.GenerativeModel('gemini-1.5-flash')
+def generate_grounded_response(prompt, history=None):
+    """General chat response with history context, streamed."""
+    if history is None:
+        history = []
+    _ensure_configured()
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
     context_summary = ""
     if len(history) > 4:
@@ -127,10 +142,13 @@ def generate_grounded_response(prompt, history=[]):
         recent_history = history
 
     history_text = "\n".join([f"{msg['role']}: {msg['text']}" for msg in recent_history])
-    
+
+    summary_section = ""
+    if context_summary:
+        summary_section = "SUMMARY OF EARLIER CONVERSATION: " + context_summary + "\n\n"
+
     full_prompt = f"""
-    {f'SUMMARY OF EARLIER CONVERSATION: {context_summary}\n\n' if context_summary else ''}
-    RECENT CONVERSATION:
+    {summary_section}RECENT CONVERSATION:
     {history_text}
 
     {prompt}
@@ -144,21 +162,19 @@ def generate_grounded_response(prompt, history=[]):
             if chunk.text:
                 yield chunk.text + "\n"
     except Exception as e:
-        print(f"An error occurred in the Gemini stream: {type(e).__name__} - {e}")
+        print(f"[GEMINI] Error in grounded response: {e}")
         yield "Sorry, an error occurred while generating the response."
 
 
 def generate_response_from_quote(company, quote_data):
-    """Generates a human-readable response from structured stock quote data."""
-    print(f"\n[GEMINI] Calling generate_response_from_quote for company: '{company}'")
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
+    """Human-readable streamed response from stock quote data."""
+    _ensure_configured()
+    model = genai.GenerativeModel('gemini-2.5-flash')
     prompt = f"""
     A user asked for the stock price of {company}.
     Using the latest market data below, formulate a friendly and clear response starting with, "Based on the latest data,".
     Data: {json.dumps(quote_data)}
     """
-
     try:
         response = model.generate_content(prompt, stream=True)
         for chunk in response:
@@ -167,56 +183,3 @@ def generate_response_from_quote(company, quote_data):
     except Exception as e:
         print(f"[GEMINI] Error in quote response: {e}")
         yield f"Based on the latest data for {company}, I couldn't retrieve the information."
-
-
-def get_batch_stock_prices(tickers):
-    """
-    Uses Gemini to get prices for multiple stocks at once.
-    Note: This is a simplified version that doesn't use Google Search grounding.
-    For production, you might want to use Alpha Vantage API directly instead.
-    """
-    print(f"\n[GEMINI] Calling get_batch_stock_prices for tickers: {tickers}")
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
-    ticker_list_str = ", ".join(tickers)
-
-    prompt = f"""
-        Find the latest closing stock price, the dollar change, and the percentage change for the following US stock tickers: {ticker_list_str}.
-
-        Return ONLY a valid JSON array. Each object in the array must include these four keys exactly: "symbol", "price", "change", "change_percent".
-
-        The values should follow this format:
-        - "symbol": the stock ticker symbol as a string (e.g., "AAPL")
-        - "price": the latest closing price as a string with 2 decimal places (e.g., "213.25")
-        - "change": the absolute dollar change as a string with a "+" or "-" sign (e.g., "+2.50" or "-1.20")
-        - "change_percent": the percentage change as a string with a "+" or "-" sign and a "%" symbol (e.g., "+1.18%")
-
-        Output ONLY the JSON array and nothing else. Do NOT include any explanation or extra text.
-
-        Example format:
-        [
-        {{
-            "symbol": "AAPL",
-            "price": "213.25",
-            "change": "+2.50",
-            "change_percent": "+1.18%"
-        }}
-        ]
-    """
-
-    try:
-        response = model.generate_content(prompt)
-        json_response_text = response.text.strip().replace("```json", "").replace("```", "").strip()
-        # Try to extract JSON from the response
-        start_idx = json_response_text.find('[')
-        end_idx = json_response_text.rfind(']') + 1
-        if start_idx >= 0 and end_idx > start_idx:
-            json_response_text = json_response_text[start_idx:end_idx]
-        return json.loads(json_response_text)
-    except (json.JSONDecodeError, AttributeError, ValueError) as e:
-        print(f"[GEMINI] Error decoding batch price JSON from Gemini: {e}")
-        print(f"[GEMINI] Response was: {response.text if 'response' in locals() else 'No response'}")
-        return None
-    except Exception as e:
-        print(f"[GEMINI] An unexpected error occurred during batch price fetch: {e}")
-        return None

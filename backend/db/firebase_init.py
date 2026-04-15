@@ -1,7 +1,6 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
-import json
 
 
 def _get_firebase_credentials():
@@ -10,25 +9,22 @@ def _get_firebase_credentials():
     1. Local firebase-key.json file (for local development)
     2. Environment variables (for production/Render deployment)
     """
-    # Option 1: Try local JSON file first
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     key_path = os.path.join(base_dir, "firebase-key.json")
-    
+
     if os.path.exists(key_path):
         print("[FIREBASE] Using local firebase-key.json file.")
         return credentials.Certificate(key_path)
-    
-    # Option 2: Build credentials from environment variables
+
     print("[FIREBASE] firebase-key.json not found. Trying environment variables...")
-    
+
     project_id = os.environ.get("FIREBASE_PROJECT_ID")
     private_key = os.environ.get("FIREBASE_PRIVATE_KEY")
     client_email = os.environ.get("FIREBASE_CLIENT_EMAIL")
-    
+
     if project_id and private_key and client_email:
-        # Handle escaped newlines in private key
         private_key = private_key.replace("\\n", "\n")
-        
+
         cred_dict = {
             "type": "service_account",
             "project_id": project_id,
@@ -43,17 +39,13 @@ def _get_firebase_credentials():
         }
         print("[FIREBASE] Using environment variables for credentials.")
         return credentials.Certificate(cred_dict)
-    
-    # Neither option available
+
     print("[FIREBASE] ERROR: No Firebase credentials found!")
-    print("[FIREBASE] Either place 'firebase-key.json' in the backend directory,")
-    print("[FIREBASE] or set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL environment variables.")
     return None
 
 
 try:
     cred = _get_firebase_credentials()
-    
     if cred:
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
@@ -62,13 +54,9 @@ try:
             print("[FIREBASE] Already initialized.")
     else:
         print("[FIREBASE] Skipping initialization - no credentials available.")
-
 except Exception as e:
     print(f"[FIREBASE] ERROR: Could not initialize Firebase Admin SDK. Error: {e}")
 
-
-if firebase_admin._apps:
-    db = firestore.client()
-else:
-    db = None
+db = firestore.client() if firebase_admin._apps else None
+if not db:
     print("[FIREBASE] Firestore client not available due to initialization failure.")
