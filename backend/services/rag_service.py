@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
-from ..config import GEMINI_PRO_MODEL, GEMINI_EMBEDDING_MODEL
+from ..config import GEMINI_API_KEY, GEMINI_PRO_MODEL, GEMINI_EMBEDDING_MODEL
 from ..utils.gemini import get_model
 from ..prompts import rag as prompts
 from ..constants import MSG_RAG_NOT_PROCESSED
@@ -21,6 +21,7 @@ async def create_vector_store_from_text(document_text, company_name):
 
     embeddings = GoogleGenerativeAIEmbeddings(
         model=GEMINI_EMBEDDING_MODEL,
+        google_api_key=GEMINI_API_KEY,
         task_type="SEMANTIC_SIMILARITY",
     )
 
@@ -56,7 +57,7 @@ async def query_rag_pipeline(company_name, question):
     vector_store = vector_store_cache[company_name]
     retriever = vector_store.as_retriever(search_kwargs={"k": 6})
 
-    llm = ChatGoogleGenerativeAI(model=GEMINI_PRO_MODEL, temperature=0.3)
+    llm = ChatGoogleGenerativeAI(model=GEMINI_PRO_MODEL, google_api_key=GEMINI_API_KEY, temperature=0.3)
     prompt = ChatPromptTemplate.from_template(prompts.RAG_CHAIN_TEMPLATE)
 
     rag_chain = (
