@@ -1,6 +1,6 @@
 import React from 'react';
 import { Newspaper } from 'lucide-react';
-import './NewsPanel.css';
+import '../../styles/NewsPanel.css';
 
 function NewsPanel({ news }) {
   const hasNews = news && news.length > 0;

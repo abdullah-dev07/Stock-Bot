@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useChatSessions } from '../../hooks/useChatSessions';
 import { authFetch } from '../../utils/apiClient';
 import { readStreamResponse } from '../../utils/streamReader';
-import './ChatWindow.css';
+import '../../styles/ChatWindow.css';
 
 function ChatWindow() {
   const { user, handleLogout } = useAuth();

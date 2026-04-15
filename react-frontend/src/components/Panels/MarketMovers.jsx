@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { TrendingUp } from 'lucide-react';
-import './MarketMovers.css';
+import '../../styles/MarketMovers.css';
 
 function MarketMovers({ movers }) {
   

@@ -6,7 +6,7 @@ import NewsPanel from '../components/Panels/NewsPanel';
 import IpoPanel from '../components/Panels/IpoPanel';
 import ChatWindow from '../components/Chat/ChatWindow';
 import { authFetch } from '../utils/apiClient';
-import './ChatPage.css';
+import '../styles/ChatPage.css';
 
 function ChatPage() {
   const [tickerData, setTickerData] = useState([]);

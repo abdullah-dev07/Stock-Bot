@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import './TickerSlider.css';
+import '../../styles/TickerSlider.css';
 
 function TickerSlider({ tickerData }) {
   
