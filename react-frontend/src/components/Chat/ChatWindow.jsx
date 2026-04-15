@@ -20,10 +20,16 @@ function ChatWindow() {
   const [isRagMode, setIsRagMode] = useState(false);
   const [ragCompany, setRagCompany] = useState(null);
   const chatBoxRef = useRef(null);
+  const skipLoadRef = useRef(false);
 
   useEffect(() => {
     if (!activeChatId) {
       setHistory([]);
+      return;
+    }
+
+    if (skipLoadRef.current) {
+      skipLoadRef.current = false;
       return;
     }
 
@@ -119,20 +125,20 @@ function ChatWindow() {
   };
 
   const handleNormalChat = async (payload) => {
-    setIsLoading(true);
     let currentChatId = activeChatId;
 
     if (!currentChatId) {
       try {
         const result = await createChat(payload.message);
         currentChatId = result.chatId;
+        skipLoadRef.current = true;
         setActiveChatId(currentChatId);
-        setHistory([]);
       } catch {
-        setIsLoading(false);
         return;
       }
     }
+
+    setIsLoading(true);
 
     if (!payload.context?.awaiting_clarification) {
       const userMessage = { role: 'user', text: payload.message, id: `user-${currentChatId}-${Date.now()}` };
