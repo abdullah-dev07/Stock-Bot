@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 
 from ..config import CACHE_DURATION_MINUTES
+from ..constants import DEFAULT_TICKER_SYMBOLS
 from . import stock_service
 
 CACHE = {
@@ -21,8 +22,7 @@ def _is_stale(cache_key):
 def get_ticker_data():
     key = "ticker_data"
     if _is_stale(key) or not CACHE[key]["data"]:
-        tickers = ["AAPL", "NVDA", "GOOGL", "MSFT"]
-        CACHE[key]["data"] = stock_service.get_batch_stock_prices(tickers)
+        CACHE[key]["data"] = stock_service.get_batch_stock_prices(DEFAULT_TICKER_SYMBOLS)
         CACHE[key]["timestamp"] = datetime.now(timezone.utc)
     return CACHE[key]["data"] or []
 

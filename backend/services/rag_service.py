@@ -1,5 +1,3 @@
-import os
-import google.generativeai as genai
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
@@ -7,15 +5,12 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
-from ..config import GEMINI_API_KEY
+from ..config import GEMINI_PRO_MODEL, GEMINI_EMBEDDING_MODEL
+from ..utils.gemini import get_model
+from ..prompts import rag as prompts
+from ..constants import MSG_RAG_NOT_PROCESSED
 
 vector_store_cache = {}
-
-
-def _ensure_configured():
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY environment variable is required.")
-    genai.configure(api_key=GEMINI_API_KEY)
 
 
 async def create_vector_store_from_text(document_text, company_name):
@@ -25,7 +20,7 @@ async def create_vector_store_from_text(document_text, company_name):
     chunks = text_splitter.split_text(document_text)
 
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
+        model=GEMINI_EMBEDDING_MODEL,
         task_type="SEMANTIC_SIMILARITY",
     )
 
@@ -37,15 +32,9 @@ async def create_vector_store_from_text(document_text, company_name):
 
 def is_question_relevant(question):
     """Quick LLM gate — is this a real question or conversational filler?"""
-    _ensure_configured()
-    model = genai.GenerativeModel('gemini-pro')
-    prompt = (
-        f'Analyze the user\'s input. Is it a genuine question seeking specific information '
-        f'from a financial document? Or is it conversational filler like "thank you", "okay", "hi"?\n\n'
-        f'User Input: "{question}"\n\nAnswer with only YES or NO.'
-    )
+    model = get_model(GEMINI_PRO_MODEL)
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(prompts.relevance_check(question))
         return response.text.strip().upper() == "YES"
     except Exception as e:
         print(f"[RAG] Relevance check failed: {e}")
@@ -55,33 +44,20 @@ def is_question_relevant(question):
 async def query_rag_pipeline(company_name, question):
     """Async generator — queries the cached vector store and streams the answer."""
     if not is_question_relevant(question):
-        _ensure_configured()
-        model = genai.GenerativeModel("gemini-pro")
-        prompt = f"Give an appropriate response based on the user's prompt: {question}"
-        response = model.generate_content(prompt)
+        model = get_model(GEMINI_PRO_MODEL)
+        response = model.generate_content(prompts.small_talk_fallback(question))
         yield response.text
         return
 
     if company_name not in vector_store_cache:
-        yield "Sorry, the document for this company has not been processed yet. Please start by providing the company name first."
+        yield MSG_RAG_NOT_PROCESSED
         return
 
     vector_store = vector_store_cache[company_name]
     retriever = vector_store.as_retriever(search_kwargs={"k": 6})
 
-    llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.3)
-
-    template = """
-    You are an expert financial analyst. The user is asking about the 10-K report for {company_name}.
-    Answer the following question based ONLY on the provided context from the report.
-    If the answer is not found in the context, say "I could not find information on that topic in the provided document."
-
-    Context:
-    {context}
-
-    Question: {question}
-    """
-    prompt = ChatPromptTemplate.from_template(template)
+    llm = ChatGoogleGenerativeAI(model=GEMINI_PRO_MODEL, temperature=0.3)
+    prompt = ChatPromptTemplate.from_template(prompts.RAG_CHAIN_TEMPLATE)
 
     rag_chain = (
         {

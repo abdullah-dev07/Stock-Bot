@@ -1,4 +1,3 @@
-import os
 import io
 import csv
 import time
@@ -6,28 +5,12 @@ import requests
 from sec_api import QueryApi
 from bs4 import BeautifulSoup
 
-from ..config import (
-    ALPHA_VANTAGE_API_KEY as API_KEY,
-    ALPHA_VANTAGE_BASE_URL as BASE_URL,
-    SEC_API_KEY,
-)
+from ..config import ALPHA_VANTAGE_API_KEY as API_KEY, SEC_API_KEY
+from ..constants import POPULAR_TICKERS
+from ..utils.alpha_vantage import fetch as av_fetch
 
 if not API_KEY:
     print("[STOCK] WARNING: ALPHA_VANTAGE_API_KEY not set. Stock data will not be available.")
-
-
-def _check_api_response(data, function_name):
-    """Check for common Alpha Vantage error/rate-limit responses."""
-    if "Note" in data:
-        print(f"[STOCK] API Rate Limit for {function_name}: {data['Note']}")
-        return False
-    if "Information" in data:
-        print(f"[STOCK] API Information for {function_name}: {data['Information']}")
-        return False
-    if "Error Message" in data:
-        print(f"[STOCK] API Error for {function_name}: {data['Error Message']}")
-        return False
-    return True
 
 
 # ---------------------------------------------------------------------------
@@ -36,109 +19,60 @@ def _check_api_response(data, function_name):
 
 def get_stock_quote(ticker):
     """Latest price information for a given ticker."""
-    if not API_KEY:
+    data = av_fetch({"function": "GLOBAL_QUOTE", "symbol": ticker}, f"GLOBAL_QUOTE({ticker})")
+    if not data:
         return None
-    params = {"function": "GLOBAL_QUOTE", "symbol": ticker, "apikey": API_KEY}
-    try:
-        response = requests.get(BASE_URL, params=params, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        if not _check_api_response(data, f"GLOBAL_QUOTE({ticker})"):
-            return None
-        quote_data = data.get("Global Quote", {})
-        if quote_data and quote_data.get("01. symbol", "").upper() == ticker.upper():
-            return quote_data
-        return None
-    except requests.exceptions.RequestException as e:
-        print(f"[STOCK] Error fetching quote for {ticker}: {e}")
-        return None
+    quote = data.get("Global Quote", {})
+    if quote and quote.get("01. symbol", "").upper() == ticker.upper():
+        return quote
+    return None
 
 
 def get_company_overview(ticker):
     """Fundamental data and key metrics for a company."""
-    if not API_KEY:
+    data = av_fetch({"function": "OVERVIEW", "symbol": ticker}, f"OVERVIEW({ticker})")
+    if not data:
         return None
-    params = {"function": "OVERVIEW", "symbol": ticker, "apikey": API_KEY}
-    try:
-        response = requests.get(BASE_URL, params=params, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        if not _check_api_response(data, f"OVERVIEW({ticker})"):
-            return None
-        if data.get("Symbol", "").upper() == ticker.upper():
-            return data
-        return None
-    except requests.exceptions.RequestException as e:
-        print(f"[STOCK] Error fetching overview for {ticker}: {e}")
-        return None
+    if data.get("Symbol", "").upper() == ticker.upper():
+        return data
+    return None
 
 
 def get_earnings(ticker):
     """Annual and quarterly earnings (EPS) for a company."""
-    if not API_KEY:
-        return None
-    params = {"function": "EARNINGS", "symbol": ticker, "apikey": API_KEY}
-    try:
-        response = requests.get(BASE_URL, params=params, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        if not _check_api_response(data, f"EARNINGS({ticker})"):
-            return None
-        return data
-    except requests.exceptions.RequestException as e:
-        print(f"[STOCK] Error fetching earnings for {ticker}: {e}")
-        return None
+    return av_fetch({"function": "EARNINGS", "symbol": ticker}, f"EARNINGS({ticker})")
 
 
 def get_technical_indicator(ticker, function, time_period="60", series_type="close"):
     """Fetch a technical indicator (SMA, RSI, etc.) — returns the latest data point."""
-    if not API_KEY:
+    data = av_fetch(
+        {"function": function, "symbol": ticker, "interval": "daily",
+         "time_period": time_period, "series_type": series_type},
+        f"{function}({ticker})",
+    )
+    if not data:
         return None
-    params = {
-        "function": function,
-        "symbol": ticker,
-        "interval": "daily",
-        "time_period": time_period,
-        "series_type": series_type,
-        "apikey": API_KEY,
-    }
-    try:
-        response = requests.get(BASE_URL, params=params, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        if not _check_api_response(data, function):
-            return None
-        data_key = f"Technical Analysis: {function}"
-        if data_key in data:
+    data_key = f"Technical Analysis: {function}"
+    if data_key in data:
+        try:
             latest_date = sorted(data[data_key].keys())[-1]
             return data[data_key][latest_date]
-        return None
-    except (requests.exceptions.RequestException, KeyError, IndexError) as e:
-        print(f"[STOCK] Error fetching {function} for {ticker}: {e}")
-        return None
+        except (KeyError, IndexError):
+            return None
+    return None
 
 
 def search_ticker_symbols(keywords):
     """Search for stock tickers — returns up to 5 best matches."""
-    if not API_KEY:
+    data = av_fetch({"function": "SYMBOL_SEARCH", "keywords": keywords.upper()}, "SYMBOL_SEARCH")
+    if not data:
         return None
-    search_term = keywords.upper()
-    params = {"function": "SYMBOL_SEARCH", "keywords": search_term, "apikey": API_KEY}
-    try:
-        response = requests.get(BASE_URL, params=params, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-        if not _check_api_response(data, "SYMBOL_SEARCH"):
-            return None
-        if "bestMatches" in data:
-            return [
-                {"symbol": m.get("1. symbol"), "name": m.get("2. name")}
-                for m in data["bestMatches"][:5]
-            ]
-        return []
-    except requests.exceptions.RequestException as e:
-        print(f"[STOCK] Error searching ticker for {keywords}: {e}")
-        return None
+    if "bestMatches" in data:
+        return [
+            {"symbol": m.get("1. symbol"), "name": m.get("2. name")}
+            for m in data["bestMatches"][:5]
+        ]
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -209,32 +143,25 @@ def get_batch_stock_prices(tickers):
 
 def get_market_movers():
     """Top gainers/losers. Tries premium endpoint, falls back to quote-based."""
-    if API_KEY:
-        params = {"function": "TOP_GAINERS_LOSERS", "apikey": API_KEY}
-        try:
-            response = requests.get(BASE_URL, params=params, timeout=15)
-            response.raise_for_status()
-            data = response.json()
-            if _check_api_response(data, "TOP_GAINERS_LOSERS"):
-                def transform(stock):
-                    return {
-                        "ticker": stock.get("ticker", stock.get("symbol", "")),
-                        "price": stock.get("price", "0.00"),
-                        "change_amount": stock.get("change_amount", "0.00"),
-                        "change_percentage": stock.get("change_percentage", "0.00%"),
-                    }
-                return {
-                    "top_gainers": [transform(s) for s in data.get("top_gainers", [])[:5]],
-                    "top_losers": [transform(s) for s in data.get("top_losers", [])[:5]],
-                }
-        except requests.exceptions.RequestException as e:
-            print(f"[STOCK] Error fetching market movers: {e}")
+    data = av_fetch({"function": "TOP_GAINERS_LOSERS"}, "TOP_GAINERS_LOSERS")
+    if data:
+        def transform(stock):
+            return {
+                "ticker": stock.get("ticker", stock.get("symbol", "")),
+                "price": stock.get("price", "0.00"),
+                "change_amount": stock.get("change_amount", "0.00"),
+                "change_percentage": stock.get("change_percentage", "0.00%"),
+            }
+        return {
+            "top_gainers": [transform(s) for s in data.get("top_gainers", [])[:5]],
+            "top_losers": [transform(s) for s in data.get("top_losers", [])[:5]],
+        }
     return _get_movers_from_quotes()
 
 
 def _get_movers_from_quotes():
     """Fallback: fetch quotes for popular stocks and sort by change%."""
-    popular_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AMD"]
+    popular_tickers = POPULAR_TICKERS
     quotes = []
     for i, ticker in enumerate(popular_tickers):
         if i > 0:
@@ -268,16 +195,12 @@ def _get_movers_from_quotes():
 
 def get_market_news():
     """Financial news — tries Alpha Vantage premium, falls back to RSS."""
-    if API_KEY:
-        params = {"function": "NEWS_SENTIMENT", "topics": "financial_markets", "limit": "10", "apikey": API_KEY}
-        try:
-            response = requests.get(BASE_URL, params=params, timeout=15)
-            response.raise_for_status()
-            data = response.json()
-            if _check_api_response(data, "NEWS_SENTIMENT"):
-                return data.get("feed", [])
-        except requests.exceptions.RequestException as e:
-            print(f"[STOCK] Error fetching market news: {e}")
+    data = av_fetch(
+        {"function": "NEWS_SENTIMENT", "topics": "financial_markets", "limit": "10"},
+        "NEWS_SENTIMENT",
+    )
+    if data:
+        return data.get("feed", [])
     return _get_news_from_rss()
 
 
@@ -316,16 +239,20 @@ def get_ipo_calendar():
     """Upcoming IPOs for the next 3 months."""
     if not API_KEY:
         return None
+    # IPO endpoint returns CSV, so we can't use av_fetch (which expects JSON)
+    from ..config import ALPHA_VANTAGE_BASE_URL as BASE_URL
     params = {"function": "IPO_CALENDAR", "apikey": API_KEY}
     try:
         response = requests.get(BASE_URL, params=params, timeout=15)
         response.raise_for_status()
         try:
             json_data = response.json()
-            if not _check_api_response(json_data, "IPO_CALENDAR"):
-                return None
+            for key in ("Note", "Information", "Error Message"):
+                if key in json_data:
+                    print(f"[STOCK] IPO_CALENDAR {key}: {json_data[key]}")
+                    return None
         except ValueError:
-            pass
+            pass  # Not JSON — it's CSV, which is expected
         ipo_data = []
         csv_file = io.StringIO(response.text)
         reader = csv.DictReader(csv_file)

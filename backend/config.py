@@ -20,6 +20,11 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 ALPHA_VANTAGE_API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
 SEC_API_KEY = os.environ.get("SEC_API_KEY")
 
+# Gemini model names (single place to change)
+GEMINI_FLASH_MODEL = "gemini-2.5-flash"
+GEMINI_PRO_MODEL = "gemini-pro"
+GEMINI_EMBEDDING_MODEL = "models/embedding-001"
+
 # External URLs
 ALPHA_VANTAGE_BASE_URL = "https://www.alphavantage.co/query"
 

@@ -2,6 +2,14 @@ import asyncio
 
 from . import gemini_service, stock_service
 from ..db import chat_repository
+from ..constants import (
+    MSG_INTERNAL_ERROR,
+    MSG_NO_PRICE_DATA,
+    MSG_NO_PREDICTION_DATA,
+    MSG_NEED_STOCK_NAME,
+    MSG_CLARIFICATION,
+    MSG_UNKNOWN_REQUEST,
+)
 
 
 def is_likely_ticker(s):
@@ -24,7 +32,7 @@ async def check_clarification_needed(user_message, history, context):
         if matches and len(matches) > 1 and not is_likely_ticker(entity):
             return {
                 "response_type": "clarification",
-                "message": f"I found a few potential matches for '{entity}'.",
+                "message": MSG_CLARIFICATION.format(entity=entity),
                 "choices": matches,
                 "original_intent": intent,
             }
@@ -36,9 +44,9 @@ def _proceed_with_intent(intent, ticker, entity):
     if intent == "get_specific_data":
         quote_data = stock_service.get_stock_quote(ticker)
         if not quote_data:
-            return iter([f"Sorry, I couldn't retrieve valid price data for {ticker}."])
+            return iter([MSG_NO_PRICE_DATA.format(ticker=ticker)])
         return gemini_service.generate_response_from_quote(entity, quote_data)
-    return iter(["I'm not sure how to proceed with that request."])
+    return iter([MSG_UNKNOWN_REQUEST])
 
 
 async def build_chat_response(user_message, context, history, user_id, chat_id):
@@ -53,7 +61,7 @@ async def build_chat_response(user_message, context, history, user_id, chat_id):
             if intent == 'get_prediction_or_advice':
                 prediction_data = await asyncio.to_thread(stock_service.get_prediction_data, ticker)
                 if not prediction_data:
-                    generator = iter([f"Sorry, I couldn't gather enough data for {ticker}."])
+                    generator = iter([MSG_NO_PREDICTION_DATA.format(ticker=ticker)])
                 else:
                     generator = gemini_service.generate_prediction_response(prediction_data, user_message)
             else:
@@ -65,7 +73,7 @@ async def build_chat_response(user_message, context, history, user_id, chat_id):
 
             if intent in ['get_specific_data', 'get_prediction_or_advice']:
                 if not entity:
-                    generator = iter(["I need to know which stock you're interested in."])
+                    generator = iter([MSG_NEED_STOCK_NAME])
                 else:
                     if is_likely_ticker(entity):
                         ticker = entity
@@ -78,7 +86,7 @@ async def build_chat_response(user_message, context, history, user_id, chat_id):
                     elif intent == 'get_prediction_or_advice':
                         prediction_data = await asyncio.to_thread(stock_service.get_prediction_data, ticker)
                         if not prediction_data:
-                            generator = iter([f"Sorry, I couldn't gather enough data for {ticker}."])
+                            generator = iter([MSG_NO_PREDICTION_DATA.format(ticker=ticker)])
                         else:
                             generator = gemini_service.generate_prediction_response(prediction_data, user_message)
             else:
@@ -94,8 +102,7 @@ async def build_chat_response(user_message, context, history, user_id, chat_id):
 
     except Exception as e:
         print(f"[CHAT] Error during processing: {type(e).__name__} - {e}")
-        error_msg = "Sorry, an internal error occurred."
-        yield error_msg
+        yield MSG_INTERNAL_ERROR
         await asyncio.to_thread(
-            chat_repository.add_message_to_chat, user_id, chat_id, "model", error_msg
+            chat_repository.add_message_to_chat, user_id, chat_id, "model", MSG_INTERNAL_ERROR
         )
