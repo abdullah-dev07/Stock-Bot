@@ -181,6 +181,12 @@ function ChatWindow() {
   };
 
   const handleRagChat = async (payload) => {
+    if (!payload.context?.awaiting_clarification) {
+      setHistory(prev => [...prev, {
+        role: 'user', text: payload.message, id: `user-rag-${Date.now()}`,
+      }]);
+    }
+
     setIsLoading(true);
     try {
       if (!ragCompany || payload.context?.original_intent === 'rag_initiate') {
