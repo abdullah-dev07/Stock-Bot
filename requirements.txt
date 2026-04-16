@@ -19,6 +19,15 @@ langchain-community==0.3.13
 langchain-text-splitters==0.3.4
 faiss-cpu==1.9.0.post1
 
+# Numerics (torch 2.2.x needs numpy <2)
+numpy>=1.26.0,<2.0.0
+
+# Local embeddings (free, no API limits)
+langchain-huggingface>=0.1.0
+sentence-transformers>=2.2.0
+torch>=2.2.0,<2.4.0
+transformers>=4.36.0,<5.0.0
+
 # Stock data APIs
 requests==2.32.3
 sec-api==1.0.25
